@@ -12,4 +12,6 @@ pluginManagement {
 rootProject.name = "UMAPI"
 
 include("api")
+include("gradle-plugin")
+include("settings-plugin")
 include("platforms:fabric-1.20.1")
