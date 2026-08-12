@@ -16,5 +16,9 @@ public final class UMAPISettingsPlugin implements Plugin<Settings> {
             repository.setName("Fabric");
             repository.setUrl(URI.create("https://maven.fabricmc.net/"));
         });
+        repositories.maven(repository -> {
+            repository.setName("NeoForged");
+            repository.setUrl(URI.create("https://maven.neoforged.net/releases/"));
+        });
     }
 }

@@ -1,6 +1,7 @@
 package com.spilledsoup.umapi;
 
 import com.spilledsoup.umapi.event.Events;
+import com.spilledsoup.umapi.logging.Logger;
 import com.spilledsoup.umapi.platform.Platform;
 
 public final class UMAPI {
@@ -19,11 +20,11 @@ public final class UMAPI {
     }
 
     public static Events events() {
-        if (platform == null) {
-            throw new IllegalStateException("UMAPI has not been initialised.");
-        }
+        return platform().events();
+    }
 
-        return platform.events();
+    public static Logger logger() {
+        return platform().logger();
     }
 
     public static String getVersion() {
@@ -32,5 +33,13 @@ public final class UMAPI {
                 .getImplementationVersion();
 
         return version != null ? version : "development";
+    }
+
+    private static Platform platform() {
+        if (platform == null) {
+            throw new IllegalStateException("UMAPI has not been initialised.");
+        }
+
+        return platform;
     }
 }

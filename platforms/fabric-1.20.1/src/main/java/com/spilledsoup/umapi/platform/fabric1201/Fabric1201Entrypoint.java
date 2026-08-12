@@ -10,6 +10,7 @@ public final class Fabric1201Entrypoint implements ModInitializer {
     @Override
     public void onInitialize() {
         UMAPI.initialise(new Fabric1201Platform());
+        UMAPI.logger().info("UMAPI initialised for Fabric 1.20.1.");
 
         FabricLoader.getInstance()
                 .invokeEntrypoints(

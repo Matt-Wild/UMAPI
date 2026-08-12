@@ -22,11 +22,17 @@ repositories {
         name = "Fabric"
         url = uri("https://maven.fabricmc.net/")
     }
+    maven {
+        name = "NeoForged"
+        url = uri("https://maven.neoforged.net/releases/")
+    }
     mavenCentral()
+    gradlePluginPortal()
 }
 
 dependencies {
     implementation("net.fabricmc:fabric-loom:1.17.19")
+    implementation("net.neoforged.gradle.userdev:net.neoforged.gradle.userdev.gradle.plugin:7.1.38")
 }
 
 tasks.processResources {

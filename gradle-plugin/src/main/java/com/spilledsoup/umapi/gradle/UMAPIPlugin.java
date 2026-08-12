@@ -2,7 +2,9 @@ package com.spilledsoup.umapi.gradle;
 
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.Task;
 import org.gradle.api.plugins.JavaPluginExtension;
+import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.testing.Test;
 import org.gradle.jvm.toolchain.JavaLanguageVersion;
 
@@ -10,6 +12,8 @@ import java.io.IOException;
 import java.util.Properties;
 
 public final class UMAPIPlugin implements Plugin<Project> {
+    private static final String RUN_CLIENT_TASK = "runUMAPIClient";
+    private static final String RUN_SERVER_TASK = "runUMAPIServer";
 
     @Override
     public void apply(Project project) {
@@ -17,14 +21,26 @@ public final class UMAPIPlugin implements Plugin<Project> {
                 "UMAPI Gradle plugin applied to " + project.getName()
         );
 
-        project.getRepositories().mavenCentral();
+        project.getPluginManager().apply("java");
 
-        project.getPluginManager().apply("net.fabricmc.fabric-loom-remap");
+        project.getRepositories().mavenCentral();
 
         String umapiVersion = getUMAPIVersion();
 
         UMAPIExtension extension = project.getExtensions()
                 .create("umapi", UMAPIExtension.class, project, umapiVersion);
+
+        var runClient = registerRuntimeShortcut(
+                project,
+                RUN_CLIENT_TASK,
+                "Runs the default UMAPI client runtime."
+        );
+
+        var runServer = registerRuntimeShortcut(
+                project,
+                RUN_SERVER_TASK,
+                "Runs the default UMAPI server runtime."
+        );
 
         project.getPluginManager().withPlugin("java", ignored -> {
             project.getExtensions().configure(
@@ -43,17 +59,64 @@ public final class UMAPIPlugin implements Plugin<Project> {
         configureTesting(project);
 
         project.afterEvaluate(ignored -> {
-            var fabricTargets = extension.getTargets().getFabricTargets();
+            var targets = extension.getTargets().getRuntimeTargets();
 
-            if (fabricTargets.isEmpty()) {
+            if (targets.isEmpty()) {
                 throw new IllegalStateException(
-                        "UMAPI currently requires a Fabric target: "
+                        "UMAPI requires at least one target, such as "
                                 + Fabric1201Target.declaration()
+                                + " or "
+                                + NeoForge1201Target.declaration()
                                 + "."
                 );
             }
 
             extension.getMod().validate();
+
+            configureRuntimeShortcuts(
+                    extension.getRuntime(),
+                    extension.getTargets().getShortcutRuntimeTargets(),
+                    runClient,
+                    runServer
+            );
+        });
+    }
+
+    private static TaskProvider<Task> registerRuntimeShortcut(
+            Project project,
+            String taskName,
+            String description
+    ) {
+        return project.getTasks().register(taskName, task -> {
+            task.setGroup("umapi");
+            task.setDescription(description);
+        });
+    }
+
+    private static void configureRuntimeShortcuts(
+            UMAPIRuntimeExtension runtime,
+            java.util.List<UMAPIRuntimeTarget> targets,
+            TaskProvider<Task> runClient,
+            TaskProvider<Task> runServer
+    ) {
+        var defaultRuntime = runtime.selectDefault(targets);
+
+        runClient.configure(task -> {
+            task.setDescription(
+                    "Runs the default UMAPI client runtime: "
+                            + defaultRuntime.id()
+                            + "."
+            );
+            task.dependsOn(defaultRuntime.clientTaskName());
+        });
+
+        runServer.configure(task -> {
+            task.setDescription(
+                    "Runs the default UMAPI server runtime: "
+                            + defaultRuntime.id()
+                            + "."
+            );
+            task.dependsOn(defaultRuntime.serverTaskName());
         });
     }
 

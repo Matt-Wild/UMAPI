@@ -1,13 +1,13 @@
-package com.spilledsoup.umapi.platform.fabric1201;
+package com.spilledsoup.umapi.platform.neoforge1201;
 
 import com.spilledsoup.umapi.event.Events;
 import com.spilledsoup.umapi.logging.Logger;
 import com.spilledsoup.umapi.platform.Platform;
 
-public final class Fabric1201Platform implements Platform {
+public final class NeoForge1201Platform implements Platform {
 
-    private final Events events = new FabricEvents();
-    private final Logger logger = new FabricLogger();
+    private final Events events = new NeoForgeEvents();
+    private final Logger logger = new NeoForgeLogger();
 
     @Override
     public Events events() {
