@@ -7,9 +7,7 @@ record UMAPITargetDescriptor(String loader, String minecraftVersion) {
             throw new IllegalArgumentException("UMAPI target loader must not be blank.");
         }
 
-        if (minecraftVersion == null || minecraftVersion.isBlank()) {
-            throw new IllegalArgumentException("UMAPI target Minecraft version must not be blank.");
-        }
+        UMAPIMinecraftVersion.validate(minecraftVersion);
     }
 
     String id() {

@@ -1,7 +1,6 @@
 package com.spilledsoup.umapi.gradle;
 
 import org.gradle.api.Project;
-import org.gradle.api.Task;
 import org.gradle.api.tasks.Exec;
 import org.gradle.api.tasks.TaskProvider;
 
@@ -34,79 +33,31 @@ public class UMAPITargetsExtension {
     }
 
     public void fabric(String minecraftVersion) {
-        if (!Fabric1201Target.supports(minecraftVersion)) {
-            throw new IllegalStateException(
-                    "UMAPI currently only supports "
-                            + Fabric1201Target.declaration()
-                            + "."
-            );
-        }
-
-        if (!fabricTargets.isEmpty()) {
-            throw new IllegalStateException(
-                    "UMAPI currently supports exactly one Fabric target."
-            );
-        }
+        var target = requireTarget(UMAPILoader.FABRIC, minecraftVersion);
 
         fabricTargets.add(new FabricTarget(minecraftVersion));
-        runtimeTargets.add(Fabric1201Target.runtimeTarget(minecraftVersion));
+        runtimeTargets.add(target.runtimeTarget());
     }
 
     public void neoforge(String minecraftVersion) {
-        if (!NeoForge1201Target.supports(minecraftVersion)) {
-            throw new IllegalStateException(
-                    "UMAPI currently only supports "
-                            + NeoForge1201Target.declaration()
-                            + "."
-            );
-        }
-
-        if (!neoForgeTargets.isEmpty()) {
-            throw new IllegalStateException(
-                    "UMAPI currently supports exactly one NeoForge target."
-            );
-        }
+        var target = requireTarget(UMAPILoader.NEOFORGE, minecraftVersion);
 
         neoForgeTargets.add(new NeoForgeTarget(minecraftVersion));
-        runtimeTargets.add(NeoForge1201Target.runtimeTarget(minecraftVersion));
+        runtimeTargets.add(target.runtimeTarget());
     }
 
     public void forge(String minecraftVersion) {
-        if (!Forge1201Target.supports(minecraftVersion)) {
-            throw new IllegalStateException(
-                    "UMAPI currently only supports "
-                            + Forge1201Target.declaration()
-                            + "."
-            );
-        }
-
-        if (!forgeTargets.isEmpty()) {
-            throw new IllegalStateException(
-                    "UMAPI currently supports exactly one Forge target."
-            );
-        }
+        var target = requireTarget(UMAPILoader.FORGE, minecraftVersion);
 
         forgeTargets.add(new ForgeTarget(minecraftVersion));
-        runtimeTargets.add(Forge1201Target.runtimeTarget(minecraftVersion));
+        runtimeTargets.add(target.runtimeTarget());
     }
 
     public void quilt(String minecraftVersion) {
-        if (!Quilt1201Target.supports(minecraftVersion)) {
-            throw new IllegalStateException(
-                    "UMAPI currently only supports "
-                            + Quilt1201Target.declaration()
-                            + "."
-            );
-        }
-
-        if (!quiltTargets.isEmpty()) {
-            throw new IllegalStateException(
-                    "UMAPI currently supports exactly one Quilt target."
-            );
-        }
+        var target = requireTarget(UMAPILoader.QUILT, minecraftVersion);
 
         quiltTargets.add(new QuiltTarget(minecraftVersion));
-        runtimeTargets.add(Quilt1201Target.runtimeTarget(minecraftVersion));
+        runtimeTargets.add(target.runtimeTarget());
     }
 
     void configureDeclaredTargets() {
@@ -175,40 +126,30 @@ public class UMAPITargetsExtension {
     public record QuiltTarget(String minecraftVersion) {
     }
 
-    private void configureDirectTarget(UMAPIRuntimeTarget target) {
-        configuredTarget = target;
+    private UMAPITargetDefinition requireTarget(
+            UMAPILoader loader,
+            String minecraftVersion
+    ) {
+        var target = UMAPISupportedTargets.require(loader, minecraftVersion);
 
-        switch (target.loader()) {
-            case "fabric" -> Fabric1201Target.configure(
-                    project,
-                    umapiVersion,
-                    mod,
-                    target.minecraftVersion()
-            );
-            case "neoforge" -> NeoForge1201Target.configure(
-                    project,
-                    umapiVersion,
-                    mod,
-                    target.minecraftVersion()
-            );
-            case "forge" -> Forge1201Target.configure(
-                    project,
-                    umapiVersion,
-                    mod,
-                    target.minecraftVersion()
-            );
-            case "quilt" -> Quilt1201Target.configure(
-                    project,
-                    umapiVersion,
-                    mod,
-                    target.minecraftVersion()
-            );
-            default -> throw new IllegalStateException(
-                    "UMAPI does not know how to configure target '"
+        if (runtimeTargets.stream().anyMatch(existing -> existing.id().equals(target.id()))) {
+            throw new IllegalStateException(
+                    "UMAPI target '"
                             + target.id()
-                            + "'."
+                            + "' has already been declared."
             );
         }
+
+        return target;
+    }
+
+    private void configureDirectTarget(UMAPIRuntimeTarget target) {
+        configuredTarget = UMAPISupportedTargets.configure(
+                project,
+                umapiVersion,
+                mod,
+                target
+        );
     }
 
     private UMAPIRuntimeTarget findTarget(String targetId) {
@@ -224,6 +165,7 @@ public class UMAPITargetsExtension {
 
     private void configureMultiTargetTasks() {
         var exportUMAPI = UMAPIExportTasks.getOrCreateExportTask(project);
+        TaskProvider<Exec> previousExportTarget = null;
 
         for (UMAPIRuntimeTarget target : runtimeTargets) {
             var exportTarget = registerTargetBuildTask(
@@ -232,6 +174,12 @@ public class UMAPITargetsExtension {
                     "Exports the " + displayName(target) + " UMAPI target jar."
             );
 
+            if (previousExportTarget != null) {
+                TaskProvider<Exec> previous = previousExportTarget;
+                exportTarget.configure(task -> task.mustRunAfter(previous));
+            }
+
+            previousExportTarget = exportTarget;
             exportUMAPI.configure(task -> task.dependsOn(exportTarget));
 
             registerTargetBuildTask(
@@ -254,10 +202,6 @@ public class UMAPITargetsExtension {
                     )
             );
         }
-
-        project.getTasks()
-                .named("assemble")
-                .configure(task -> task.dependsOn(exportUMAPI));
     }
 
     private TaskProvider<Exec> registerTargetBuildTask(
@@ -271,7 +215,7 @@ public class UMAPITargetsExtension {
             task.setWorkingDir(project.getProjectDir());
             task.commandLine(
                     gradleWrapperPath(),
-                    "-P" + ACTIVE_TARGET_PROPERTY + "=" + target.id(),
+                    "--project-prop=" + ACTIVE_TARGET_PROPERTY + "=" + target.id(),
                     taskName
             );
         });

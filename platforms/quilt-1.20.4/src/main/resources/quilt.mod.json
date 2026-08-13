@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "quilt_loader": {
+    "group": "com.spilledsoup.umapi",
+    "id": "umapi",
+    "version": "${version}",
+    "metadata": {
+      "name": "UMAPI",
+      "description": "Universal Minecraft API",
+      "contributors": {
+        "SpilledSoup": "Developer"
+      }
+    },
+    "intermediate_mappings": "net.fabricmc:intermediary",
+    "entrypoints": {
+      "init": "com.spilledsoup.umapi.platform.quilt1204.Quilt1204Entrypoint"
+    },
+    "depends": [
+      {
+        "id": "quilt_loader",
+        "versions": ">=0.26.0"
+      },
+      {
+        "id": "minecraft",
+        "versions": "1.20.4"
+      },
+      {
+        "id": "java",
+        "versions": ">=17"
+      },
+      {
+        "id": "quilted_fabric_api",
+        "versions": "*"
+      }
+    ]
+  }
+}

@@ -51,10 +51,10 @@ public final class UMAPIPlugin implements Plugin<Project> {
             );
         });
 
-        project.getDependencies().add(
-                "implementation",
-                "com.spilledsoup.umapi:api:" + umapiVersion
-        );
+        String apiDependency = "com.spilledsoup.umapi:api:" + umapiVersion;
+
+        project.getDependencies().add("compileOnly", apiDependency);
+        project.getDependencies().add("testImplementation", apiDependency);
 
         configureTesting(project);
 
@@ -64,13 +64,7 @@ public final class UMAPIPlugin implements Plugin<Project> {
             if (targets.isEmpty()) {
                 throw new IllegalStateException(
                         "UMAPI requires at least one target, such as "
-                                + Fabric1201Target.declaration()
-                                + " or "
-                                + NeoForge1201Target.declaration()
-                                + " or "
-                                + Forge1201Target.declaration()
-                                + " or "
-                                + Quilt1201Target.declaration()
+                                + UMAPISupportedTargets.declarations()
                                 + "."
                 );
             }

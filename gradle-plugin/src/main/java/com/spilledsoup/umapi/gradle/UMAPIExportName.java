@@ -1,21 +1,19 @@
 package com.spilledsoup.umapi.gradle;
 
-import org.gradle.api.Project;
-
 final class UMAPIExportName {
 
     private UMAPIExportName() {
     }
 
     static String jarFileName(
-            Project project,
-            UMAPIModExtension mod,
+            String modName,
+            String modVersion,
             String loader,
             String minecraftVersion
     ) {
-        return sanitizePart(mod.getName())
+        return sanitizePart(modName)
                 + "-v"
-                + sanitizePart(project.getVersion().toString())
+                + sanitizePart(modVersion)
                 + "-"
                 + sanitizePart(loader)
                 + "-mc"

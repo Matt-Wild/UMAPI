@@ -80,7 +80,7 @@ public class UMAPIRuntimeExtension {
 
         String latestVersion = candidates.stream()
                 .map(UMAPIRuntimeTarget::minecraftVersion)
-                .max(UMAPIRuntimeExtension::compareMinecraftVersions)
+                .max(UMAPIMinecraftVersion::compare)
                 .orElseThrow();
 
         return candidates.stream()
@@ -90,35 +90,6 @@ public class UMAPIRuntimeExtension {
                         loaderPreference(right.loader())
                 ))
                 .orElseThrow();
-    }
-
-    private static int compareMinecraftVersions(String left, String right) {
-        String[] leftParts = left.split("\\.");
-        String[] rightParts = right.split("\\.");
-        int partCount = Math.max(leftParts.length, rightParts.length);
-
-        for (int index = 0; index < partCount; index++) {
-            int leftPart = versionPart(leftParts, index);
-            int rightPart = versionPart(rightParts, index);
-
-            if (leftPart != rightPart) {
-                return Integer.compare(leftPart, rightPart);
-            }
-        }
-
-        return left.compareTo(right);
-    }
-
-    private static int versionPart(String[] parts, int index) {
-        if (index >= parts.length) {
-            return 0;
-        }
-
-        try {
-            return Integer.parseInt(parts[index]);
-        } catch (NumberFormatException exception) {
-            return 0;
-        }
     }
 
     private static int loaderPreference(String loader) {

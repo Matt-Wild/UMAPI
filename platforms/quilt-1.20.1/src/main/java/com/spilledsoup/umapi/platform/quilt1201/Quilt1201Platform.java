@@ -1,21 +1,11 @@
 package com.spilledsoup.umapi.platform.quilt1201;
 
-import com.spilledsoup.umapi.event.Events;
-import com.spilledsoup.umapi.logging.Logger;
-import com.spilledsoup.umapi.platform.Platform;
+import com.spilledsoup.umapi.platform.AbstractPlatform;
+import com.spilledsoup.umapi.platform.shared.fabriclike120x.FabricLikeEvents;
+import com.spilledsoup.umapi.platform.shared.logging.Slf4jLogger;
 
-public final class Quilt1201Platform implements Platform {
-
-    private final Events events = new QuiltEvents();
-    private final Logger logger = new QuiltLogger();
-
-    @Override
-    public Events events() {
-        return events;
-    }
-
-    @Override
-    public Logger logger() {
-        return logger;
+public final class Quilt1201Platform extends AbstractPlatform {
+    public Quilt1201Platform() {
+        super(new FabricLikeEvents(), new Slf4jLogger());
     }
 }

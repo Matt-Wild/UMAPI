@@ -37,7 +37,13 @@ public abstract class GenerateForgeFamilyModsTomlTask extends DefaultTask {
     public abstract Property<String> getForgeVersionRange();
 
     @Input
+    public abstract Property<String> getLoaderDependencyModId();
+
+    @Input
     public abstract Property<String> getLoaderVersionRange();
+
+    @Input
+    public abstract Property<Boolean> getUseModernDependencyType();
 
     @Input
     public abstract Property<String> getUMAPIVersionRange();
@@ -94,22 +100,22 @@ public abstract class GenerateForgeFamilyModsTomlTask extends DefaultTask {
                 description=%s
 
                 [[dependencies.%s]]
-                modId="forge"
-                mandatory=true
+                modId=%s
+                %s
                 versionRange=%s
                 ordering="NONE"
                 side="BOTH"
 
                 [[dependencies.%s]]
                 modId="minecraft"
-                mandatory=true
+                %s
                 versionRange=%s
                 ordering="NONE"
                 side="BOTH"
 
                 [[dependencies.%s]]
                 modId="umapi"
-                mandatory=true
+                %s
                 versionRange=%s
                 ordering="AFTER"
                 side="BOTH"
@@ -121,10 +127,14 @@ public abstract class GenerateForgeFamilyModsTomlTask extends DefaultTask {
                 quote(renderAuthors(getModAuthors().get())),
                 quote(getModDescription().get()),
                 modId,
+                quote(getLoaderDependencyModId().get()),
+                dependencyRequirement(),
                 quote(getForgeVersionRange().get()),
                 modId,
+                dependencyRequirement(),
                 quote(getMinecraftVersionRange().get()),
                 modId,
+                dependencyRequirement(),
                 quote(getUMAPIVersionRange().get())
         );
     }
@@ -146,6 +156,14 @@ public abstract class GenerateForgeFamilyModsTomlTask extends DefaultTask {
     private static String renderAuthors(List<String> authors) {
         return authors.stream()
                 .collect(Collectors.joining(", "));
+    }
+
+    private String dependencyRequirement() {
+        if (getUseModernDependencyType().get()) {
+            return "type=\"required\"";
+        }
+
+        return "mandatory=true";
     }
 
     private static String quote(String value) {

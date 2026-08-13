@@ -65,7 +65,7 @@ final class UMAPIRuntimeTasks {
     private static String loaderTaskName(String loader) {
         String knownTaskNamePart = UMAPILoader.taskNamePart(loader);
 
-        return knownTaskNamePart != null ? knownTaskNamePart : toTaskNamePart(loader);
+        return knownTaskNamePart != null ? knownTaskNamePart : UMAPIGradleNames.taskNamePart(loader);
     }
 
     private static String loaderDisplayName(String loader) {
@@ -73,20 +73,6 @@ final class UMAPIRuntimeTasks {
     }
 
     private static String minecraftVersionTaskName(String minecraftVersion) {
-        return toTaskNamePart(minecraftVersion);
-    }
-
-    private static String toTaskNamePart(String value) {
-        if (value == null || value.isBlank()) {
-            return "Unknown";
-        }
-
-        String sanitized = value.replaceAll("[^A-Za-z0-9]+", "");
-
-        if (sanitized.isBlank()) {
-            return "Unknown";
-        }
-
-        return Character.toUpperCase(sanitized.charAt(0)) + sanitized.substring(1);
+        return UMAPIMinecraftVersion.taskNamePart(minecraftVersion);
     }
 }

@@ -44,10 +44,13 @@ dependencies {
     implementation("net.minecraftforge:renamer-gradle:1.1.5")
 }
 
+val umapiVersion = version.toString()
+
 tasks.processResources {
-    inputs.property("version", project.version)
+    val resourceProperties = mapOf("version" to umapiVersion)
+    inputs.properties(resourceProperties)
 
     filesMatching("umapi.properties") {
-        expand("version" to project.version)
+        expand(resourceProperties)
     }
 }

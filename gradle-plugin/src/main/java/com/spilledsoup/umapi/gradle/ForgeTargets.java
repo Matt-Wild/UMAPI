@@ -1,0 +1,294 @@
+package com.spilledsoup.umapi.gradle;
+
+import net.minecraftforge.gradle.MavenizerInstance;
+import net.minecraftforge.gradle.MinecraftExtensionForProject;
+import net.minecraftforge.gradle.SlimeLauncherOptions;
+import net.minecraftforge.gradle.shadow.net.minecraftforge.gradleutils.shared.ToolsExtension;
+import net.minecraftforge.renamer.gradle.RenamerExtension;
+import org.gradle.api.Project;
+import org.gradle.api.tasks.Copy;
+import org.gradle.api.tasks.Delete;
+import org.gradle.api.tasks.SourceSet;
+import org.gradle.api.tasks.SourceSetContainer;
+import org.gradle.api.tasks.bundling.Jar;
+import org.gradle.api.tasks.compile.JavaCompile;
+import org.gradle.jvm.toolchain.JavaLanguageVersion;
+import org.gradle.jvm.toolchain.JavaToolchainService;
+
+import java.net.URI;
+
+final class ForgeTargets {
+    private static final String FORGE_GRADLE_PLUGIN = "net.minecraftforge.gradle";
+    private static final String FORGE_RENAMER_PLUGIN = "net.minecraftforge.renamer";
+    private static final String SLIME_LAUNCHER_TOOL = "slimelauncher";
+    private static final UMAPILoader LOADER = UMAPILoader.FORGE;
+    private static final String GENERATED_RESOURCES_BASE_PATH = "generated/resources/umapi-forge";
+    private static final String GENERATED_SOURCES_BASE_PATH = "generated/sources/umapi-forge";
+    private static final String GENERATE_RESOURCES_TASK = "generateUMAPIForgeResources";
+    private static final String CLEAN_STALE_MAIN_RESOURCES_TASK = "cleanUMAPIForgeStaleMainResources";
+    private static final String COPY_RESOURCES_TO_CLASSES_TASK = "copyUMAPIForgeResourcesToClasses";
+    private static final String GENERATE_ENTRYPOINT_TASK = "generateUMAPIForgeEntrypoint";
+    private static final String GENERATED_ENTRYPOINT_CLASS = "UMAPIForgeEntrypoint";
+    private static final String FORGE_CLIENT_RUN = "client";
+    private static final String FORGE_SERVER_RUN = "server";
+    private static final String NATIVE_FORGE_CLIENT_TASK = "runClient";
+    private static final String NATIVE_FORGE_SERVER_TASK = "runServer";
+    private static final String REOBF_JAR_TASK = "reobfJar";
+
+    private ForgeTargets() {
+    }
+
+    static UMAPIRuntimeTarget configure(
+            Project project,
+            String umapiVersion,
+            UMAPIModExtension mod,
+            String minecraftVersion
+    ) {
+        var definition = UMAPITargetCatalog.forge(minecraftVersion);
+        var target = definition.target();
+        var descriptor = target.descriptor();
+
+        configureDependencies(project, umapiVersion, target, definition, descriptor);
+        configureGeneratedResources(project, mod, target, definition);
+        configureGeneratedEntrypoint(project, mod, target, definition);
+        configureRuntime(project, mod, target, descriptor);
+        configureExport(project, mod, descriptor);
+
+        return descriptor.runtimeTarget();
+    }
+
+    private static void configureDependencies(
+            Project project,
+            String umapiVersion,
+            UMAPITargetDefinition target,
+            UMAPITargetCatalog.ForgeTarget definition,
+            UMAPITargetDescriptor descriptor
+    ) {
+        project.getPluginManager().apply(FORGE_GRADLE_PLUGIN);
+        project.getPluginManager().apply(FORGE_RENAMER_PLUGIN);
+        configureSlimeLauncher(project);
+
+        project.getRepositories().maven(repository -> {
+            repository.setName("MinecraftForge");
+            repository.setUrl(URI.create("https://maven.minecraftforge.net/"));
+        });
+        project.getRepositories().maven(repository -> {
+            repository.setName("MinecraftLibraries");
+            repository.setUrl(URI.create("https://libraries.minecraft.net/"));
+        });
+
+        var minecraft = project.getExtensions().getByType(MinecraftExtensionForProject.class);
+        minecraft.mappings("official", descriptor.minecraftVersion());
+        var forge = minecraft.dependency(definition.forgeDependencyNotation());
+        minecraft.mavenizer(project.getRepositories());
+
+        project.getDependencies().addProvider("implementation", forge.asProvider());
+        configureRenamer(project, forge);
+
+        project.getDependencies().add(
+                "implementation",
+                "com.spilledsoup.umapi:" + target.platformArtifactId() + ":" + umapiVersion
+        );
+    }
+
+    private static void configureSlimeLauncher(Project project) {
+        var toolchains = project.getExtensions().getByType(JavaToolchainService.class);
+        var java17 = toolchains.launcherFor(spec -> spec.getLanguageVersion()
+                .set(JavaLanguageVersion.of(17)));
+
+        project.getExtensions()
+                .getByType(ToolsExtension.class)
+                .configure(SLIME_LAUNCHER_TOOL, tool -> tool.getJavaLauncher().set(java17));
+    }
+
+    private static void configureRenamer(Project project, MavenizerInstance forge) {
+        var renamer = project.getExtensions().getByType(RenamerExtension.class);
+        var jar = project.getTasks().named("jar", Jar.class);
+
+        renamer.classes(
+                REOBF_JAR_TASK,
+                jar,
+                task -> {
+                    task.getJavaLauncher().set(project.getExtensions()
+                            .getByType(JavaToolchainService.class)
+                            .launcherFor(spec -> spec.getLanguageVersion()
+                                    .set(JavaLanguageVersion.of(17))));
+                    task.mappings(forge.getToSrg());
+                }
+        );
+    }
+
+    private static void configureGeneratedResources(
+            Project project,
+            UMAPIModExtension mod,
+            UMAPITargetDefinition target,
+            UMAPITargetCatalog.ForgeTarget definition
+    ) {
+        var generatedResourcesDirectory = UMAPIGeneratedResources.directory(
+                project,
+                generatedResourcesPath(target)
+        );
+
+        var generateResources = UMAPIForgeFamilyTargetSupport.registerGeneratedResources(
+                project,
+                mod,
+                definition,
+                generatedResourcesDirectory,
+                GENERATE_RESOURCES_TASK
+        );
+
+        wireGeneratedResourcesToClasses(
+                project,
+                generatedResourcesDirectory,
+                generateResources
+        );
+    }
+
+    private static void wireGeneratedResourcesToClasses(
+            Project project,
+            org.gradle.api.provider.Provider<org.gradle.api.file.Directory> generatedResourcesDirectory,
+            org.gradle.api.tasks.TaskProvider<?> generateResources
+    ) {
+        var compileJava = project.getTasks().named("compileJava", JavaCompile.class);
+        var mainResourcesDirectory = project.getLayout()
+                .getBuildDirectory()
+                .dir("resources/main");
+
+        var cleanStaleMainResources = project.getTasks().register(
+                CLEAN_STALE_MAIN_RESOURCES_TASK,
+                Delete.class,
+                task -> {
+                    task.delete(mainResourcesDirectory.map(directory ->
+                            directory.file("META-INF/mods.toml")
+                    ));
+                    task.delete(mainResourcesDirectory.map(directory ->
+                            directory.file("pack.mcmeta")
+                    ));
+                }
+        );
+
+        project.getTasks()
+                .named("processResources")
+                .configure(task -> task.dependsOn(cleanStaleMainResources));
+
+        var copyResourcesToClasses = project.getTasks().register(
+                COPY_RESOURCES_TO_CLASSES_TASK,
+                Copy.class,
+                task -> {
+                    task.dependsOn(generateResources);
+                    task.dependsOn(compileJava);
+                    task.from(generatedResourcesDirectory);
+                    task.into(compileJava.flatMap(JavaCompile::getDestinationDirectory));
+                }
+        );
+
+        project.getTasks()
+                .named("classes")
+                .configure(task -> task.dependsOn(copyResourcesToClasses));
+    }
+
+    private static void configureGeneratedEntrypoint(
+            Project project,
+            UMAPIModExtension mod,
+            UMAPITargetDefinition target,
+            UMAPITargetCatalog.ForgeTarget definition
+    ) {
+        var generatedSourcesDirectory = project.getLayout()
+                .getBuildDirectory()
+                .dir(generatedSourcesPath(target));
+
+        UMAPIForgeFamilyTargetSupport.configureGeneratedEntrypoint(
+                project,
+                mod,
+                definition,
+                generatedSourcesDirectory,
+                GENERATE_ENTRYPOINT_TASK,
+                GENERATED_ENTRYPOINT_CLASS
+        );
+    }
+
+    private static void configureRuntime(
+            Project project,
+            UMAPIModExtension mod,
+            UMAPITargetDefinition definition,
+            UMAPITargetDescriptor descriptor
+    ) {
+        project.getExtensions().configure(
+                SourceSetContainer.class,
+                sourceSets -> {
+                    var main = sourceSets.getByName("main");
+                    var minecraft = project.getExtensions().getByType(MinecraftExtensionForProject.class);
+
+                    configureForgeRun(
+                            project,
+                            minecraft.getRuns().maybeCreate(FORGE_CLIENT_RUN),
+                            main,
+                            mod.getId(),
+                            definition.clientWorkingDirectory()
+                    );
+                    configureForgeRun(
+                            project,
+                            minecraft.getRuns().maybeCreate(FORGE_SERVER_RUN),
+                            main,
+                            mod.getId(),
+                            definition.serverWorkingDirectory()
+                    );
+                }
+        );
+
+        UMAPIRuntimeTasks.registerWrapper(
+                project,
+                descriptor.clientTaskName(),
+                NATIVE_FORGE_CLIENT_TASK,
+                descriptor.loader(),
+                descriptor.minecraftVersion(),
+                UMAPIRuntimeTasks.Side.CLIENT
+        );
+
+        UMAPIRuntimeTasks.registerWrapper(
+                project,
+                descriptor.serverTaskName(),
+                NATIVE_FORGE_SERVER_TASK,
+                descriptor.loader(),
+                descriptor.minecraftVersion(),
+                UMAPIRuntimeTasks.Side.SERVER
+        );
+    }
+
+    private static void configureForgeRun(
+            Project project,
+            SlimeLauncherOptions run,
+            SourceSet main,
+            String modId,
+            String runName
+    ) {
+        run.getWorkingDir().set(
+                project.getLayout()
+                        .getProjectDirectory()
+                        .dir("runs/" + runName)
+        );
+        run.getMods().maybeCreate(modId).source(main);
+    }
+
+    private static void configureExport(
+            Project project,
+            UMAPIModExtension mod,
+            UMAPITargetDescriptor target
+    ) {
+        UMAPIExportTasks.registerJarExport(
+                project,
+                mod,
+                target,
+                project.getTasks().named(REOBF_JAR_TASK),
+                "Exports the Forge " + target.minecraftVersion() + " mod jar to the UMAPI exports directory."
+        );
+    }
+
+    private static String generatedResourcesPath(UMAPITargetDefinition target) {
+        return UMAPIForgeFamilyTargetSupport.generatedPath(GENERATED_RESOURCES_BASE_PATH, target);
+    }
+
+    private static String generatedSourcesPath(UMAPITargetDefinition target) {
+        return UMAPIForgeFamilyTargetSupport.generatedJavaPath(GENERATED_SOURCES_BASE_PATH, target);
+    }
+}

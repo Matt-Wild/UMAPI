@@ -1,21 +1,11 @@
 package com.spilledsoup.umapi.platform.fabric1201;
 
-import com.spilledsoup.umapi.event.Events;
-import com.spilledsoup.umapi.logging.Logger;
-import com.spilledsoup.umapi.platform.Platform;
+import com.spilledsoup.umapi.platform.AbstractPlatform;
+import com.spilledsoup.umapi.platform.shared.fabriclike120x.FabricLikeEvents;
+import com.spilledsoup.umapi.platform.shared.logging.Slf4jLogger;
 
-public final class Fabric1201Platform implements Platform {
-
-    private final Events events = new FabricEvents();
-    private final Logger logger = new FabricLogger();
-
-    @Override
-    public Events events() {
-        return events;
-    }
-
-    @Override
-    public Logger logger() {
-        return logger;
+public final class Fabric1201Platform extends AbstractPlatform {
+    public Fabric1201Platform() {
+        super(new FabricLikeEvents(), new Slf4jLogger());
     }
 }

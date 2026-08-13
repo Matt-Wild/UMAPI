@@ -8,6 +8,13 @@ java {
     }
 }
 
+extensions.configure<SourceSetContainer> {
+    named("main") {
+        java.srcDir("../shared/common/src/main/java")
+        java.srcDir("../shared/fabriclike-1.20.x/src/main/java")
+    }
+}
+
 dependencies {
     minecraft("com.mojang:minecraft:1.20.1")
     mappings(loom.officialMojangMappings())
@@ -46,10 +53,13 @@ tasks.named<JavaExec>("runServer") {
     useUMAPIRunDirectory("quilt1201Server")
 }
 
+val modVersion = version.toString()
+
 tasks.processResources {
-    inputs.property("version", project.version)
+    val resourceProperties = mapOf("version" to modVersion)
+    inputs.properties(resourceProperties)
 
     filesMatching("quilt.mod.json") {
-        expand("version" to project.version)
+        expand(resourceProperties)
     }
 }

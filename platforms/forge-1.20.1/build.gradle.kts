@@ -14,6 +14,13 @@ java {
     }
 }
 
+extensions.configure<SourceSetContainer> {
+    named("main") {
+        java.srcDir("../shared/common/src/main/java")
+        java.srcDir("../shared/forge-1.20.x/src/main/java")
+    }
+}
+
 extensions.getByType(ToolsExtension::class.java).configure("slimelauncher") {
     javaLauncher.set(javaToolchains.launcherFor {
         languageVersion = JavaLanguageVersion.of(17)
@@ -28,7 +35,7 @@ val forge = extensions.getByType(MinecraftExtensionForProject::class.java).run {
 }
 
 dependencies {
-    implementation(project(":api"))
+    compileOnly(project(":api"))
     addProvider("implementation", forge.asProvider())
 }
 
@@ -47,10 +54,13 @@ extensions.getByType(RenamerExtension::class.java).classes(
     mappings(forge.getToSrg())
 }
 
+val modVersion = version.toString()
+
 tasks.processResources {
-    inputs.property("version", project.version)
+    val resourceProperties = mapOf("version" to modVersion)
+    inputs.properties(resourceProperties)
 
     filesMatching("META-INF/mods.toml") {
-        expand("version" to project.version)
+        expand(resourceProperties)
     }
 }

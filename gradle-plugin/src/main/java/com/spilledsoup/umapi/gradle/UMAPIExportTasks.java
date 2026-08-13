@@ -29,21 +29,22 @@ final class UMAPIExportTasks {
                     task.from(jarTask);
                     task.include("*.jar");
                     task.into(project.getLayout().getBuildDirectory().dir(EXPORT_DIRECTORY));
-                    task.rename(ignored -> UMAPIExportName.jarFileName(
-                            project,
-                            mod,
-                            target.loader(),
-                            target.minecraftVersion()
-                    ));
                 }
         );
 
+        project.afterEvaluate(ignored -> {
+            String exportedJarFileName = UMAPIExportName.jarFileName(
+                    mod.getName(),
+                    project.getVersion().toString(),
+                    target.loader(),
+                    target.minecraftVersion()
+            );
+
+            exportTarget.configure(task -> task.rename(ignoredName -> exportedJarFileName));
+        });
+
         var exportUMAPI = getOrCreateExportTask(project);
         exportUMAPI.configure(task -> task.dependsOn(exportTarget));
-
-        project.getTasks()
-                .named("assemble")
-                .configure(task -> task.dependsOn(exportUMAPI));
 
         return exportTarget;
     }

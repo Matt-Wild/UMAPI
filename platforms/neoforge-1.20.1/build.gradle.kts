@@ -8,9 +8,15 @@ java {
     }
 }
 
+extensions.configure<SourceSetContainer> {
+    named("main") {
+        java.srcDir("../shared/common/src/main/java")
+    }
+}
+
 dependencies {
     implementation("net.neoforged:forge:1.20.1-47.1.106")
-    implementation(project(":api"))
+    compileOnly(project(":api"))
 }
 
 tasks.jar {
@@ -18,10 +24,13 @@ tasks.jar {
     from(project(":api").extensions.getByType<SourceSetContainer>().named("main").map { it.output })
 }
 
+val modVersion = version.toString()
+
 tasks.processResources {
-    inputs.property("version", project.version)
+    val resourceProperties = mapOf("version" to modVersion)
+    inputs.properties(resourceProperties)
 
     filesMatching("META-INF/mods.toml") {
-        expand("version" to project.version)
+        expand(resourceProperties)
     }
 }

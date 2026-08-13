@@ -4,18 +4,25 @@ import java.util.Locale;
 import java.util.Optional;
 
 enum UMAPILoader {
-    FABRIC("fabric", "Fabric", 0),
-    NEOFORGE("neoforge", "NeoForge", 1),
-    FORGE("forge", "Forge", 2),
-    QUILT("quilt", "Quilt", 3);
+    FABRIC("fabric", "Fabric", "fabric", 0),
+    NEOFORGE("neoforge", "NeoForge", "neoForge", 1),
+    FORGE("forge", "Forge", "forge", 2),
+    QUILT("quilt", "Quilt", "quilt", 3);
 
     private final String id;
     private final String displayName;
+    private final String runDirectoryPart;
     private final int runtimePriority;
 
-    UMAPILoader(String id, String displayName, int runtimePriority) {
+    UMAPILoader(
+            String id,
+            String displayName,
+            String runDirectoryPart,
+            int runtimePriority
+    ) {
         this.id = id;
         this.displayName = displayName;
+        this.runDirectoryPart = runDirectoryPart;
         this.runtimePriority = runtimePriority;
     }
 
@@ -29,6 +36,10 @@ enum UMAPILoader {
 
     String taskNamePart() {
         return displayName;
+    }
+
+    String runDirectoryPart() {
+        return runDirectoryPart;
     }
 
     int runtimePriority() {
@@ -53,7 +64,7 @@ enum UMAPILoader {
                 .orElse(Integer.MAX_VALUE);
     }
 
-    private static Optional<UMAPILoader> find(String loaderId) {
+    static Optional<UMAPILoader> find(String loaderId) {
         if (loaderId == null || loaderId.isBlank()) {
             return Optional.empty();
         }

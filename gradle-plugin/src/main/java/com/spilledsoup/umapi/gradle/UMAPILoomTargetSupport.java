@@ -1,5 +1,6 @@
 package com.spilledsoup.umapi.gradle;
 
+import org.gradle.api.NamedDomainObjectContainer;
 import org.gradle.api.Project;
 
 import java.lang.reflect.InvocationTargetException;
@@ -47,12 +48,44 @@ final class UMAPILoomTargetSupport {
         );
     }
 
+    static void configureLoomModDependencies(
+            Project project,
+            String umapiVersion,
+            UMAPITargetDefinition target,
+            String loomPluginId,
+            UMAPILoader loader,
+            String loaderDependencyNotation
+    ) {
+        configureMinecraft(
+                project,
+                loomPluginId,
+                target.minecraftVersion(),
+                loader.displayName(),
+                runtimeTasks(target.descriptor())
+        );
+
+        addPlatformDependency(
+                project,
+                target.platformArtifactId(),
+                umapiVersion
+        );
+
+        project.getDependencies().add(
+                "modImplementation",
+                loaderDependencyNotation
+        );
+    }
+
     static void configureRuntime(
             Project project,
             UMAPITargetDescriptor target,
             String clientDirectoryName,
-            String serverDirectoryName
+            String serverDirectoryName,
+            UMAPIModExtension mod
     ) {
+        project.afterEvaluate(ignored -> configureMainModSourceSet(project, mod.getId()));
+        disableConfigurationCacheForNativeRuntime(project);
+
         UMAPILoomRunDirectories.configure(
                 project,
                 clientDirectoryName,
@@ -89,6 +122,39 @@ final class UMAPILoomTargetSupport {
         );
     }
 
+    private static void disableConfigurationCacheForNativeRuntime(Project project) {
+        project.getTasks()
+                .matching(task ->
+                        RUN_CLIENT_TASK.equals(task.getName())
+                                || RUN_SERVER_TASK.equals(task.getName())
+                )
+                .configureEach(task -> task.notCompatibleWithConfigurationCache(
+                        "Loom game run tasks currently keep project state that Gradle cannot serialize."
+                ));
+    }
+
+    private static void configureMainModSourceSet(Project project, String modId) {
+        Object loom = project.getExtensions().getByName("loom");
+        Object mods = invoke(loom, "getMods", "Could not configure Loom mods block.");
+
+        if (!(mods instanceof NamedDomainObjectContainer<?>)) {
+            throw new IllegalStateException("Could not configure Loom mods block.");
+        }
+
+        @SuppressWarnings("unchecked")
+        var modSettings = ((NamedDomainObjectContainer<Object>) mods).maybeCreate(modId);
+
+        invoke(
+                modSettings,
+                "sourceSet",
+                "Could not configure Loom mods block.",
+                String.class,
+                String.class,
+                "main",
+                project.getPath()
+        );
+    }
+
     private static Object officialMojangMappings(Project project, String loaderDisplayName) {
         Object loom = project.getExtensions().getByName("loom");
 
@@ -110,6 +176,42 @@ final class UMAPILoomTargetSupport {
                             + " official Mojang mappings.",
                     exception.getCause()
             );
+        }
+    }
+
+    private static Object invoke(
+            Object target,
+            String methodName,
+            String errorMessage
+    ) {
+        try {
+            return target.getClass()
+                    .getMethod(methodName)
+                    .invoke(target);
+        } catch (IllegalAccessException | NoSuchMethodException exception) {
+            throw new IllegalStateException(errorMessage, exception);
+        } catch (InvocationTargetException exception) {
+            throw new IllegalStateException(errorMessage, exception.getCause());
+        }
+    }
+
+    private static void invoke(
+            Object target,
+            String methodName,
+            String errorMessage,
+            Class<?> firstParameterType,
+            Class<?> secondParameterType,
+            Object firstValue,
+            Object secondValue
+    ) {
+        try {
+            target.getClass()
+                    .getMethod(methodName, firstParameterType, secondParameterType)
+                    .invoke(target, firstValue, secondValue);
+        } catch (IllegalAccessException | NoSuchMethodException exception) {
+            throw new IllegalStateException(errorMessage, exception);
+        } catch (InvocationTargetException exception) {
+            throw new IllegalStateException(errorMessage, exception.getCause());
         }
     }
 
