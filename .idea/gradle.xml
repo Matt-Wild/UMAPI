@@ -13,7 +13,9 @@
             <option value="$PROJECT_DIR$/gradle-plugin" />
             <option value="$PROJECT_DIR$/platforms" />
             <option value="$PROJECT_DIR$/platforms/fabric-1.20.1" />
+            <option value="$PROJECT_DIR$/platforms/forge-1.20.1" />
             <option value="$PROJECT_DIR$/platforms/neoforge-1.20.1" />
+            <option value="$PROJECT_DIR$/platforms/quilt-1.20.1" />
             <option value="$PROJECT_DIR$/settings-plugin" />
           </set>
         </option>

@@ -67,6 +67,10 @@ public final class UMAPIPlugin implements Plugin<Project> {
                                 + Fabric1201Target.declaration()
                                 + " or "
                                 + NeoForge1201Target.declaration()
+                                + " or "
+                                + Forge1201Target.declaration()
+                                + " or "
+                                + Quilt1201Target.declaration()
                                 + "."
                 );
             }

@@ -11,13 +11,14 @@ import java.util.List;
 
 public class UMAPITargetsExtension {
     private static final String ACTIVE_TARGET_PROPERTY = "umapi.activeTarget";
-    private static final String EXPORT_TASK = "exportUMAPI";
 
     private final Project project;
     private final String umapiVersion;
     private final UMAPIModExtension mod;
     private final List<FabricTarget> fabricTargets = new ArrayList<>();
     private final List<NeoForgeTarget> neoForgeTargets = new ArrayList<>();
+    private final List<ForgeTarget> forgeTargets = new ArrayList<>();
+    private final List<QuiltTarget> quiltTargets = new ArrayList<>();
     private final List<UMAPIRuntimeTarget> runtimeTargets = new ArrayList<>();
     private boolean configured;
     private UMAPIRuntimeTarget configuredTarget;
@@ -70,6 +71,44 @@ public class UMAPITargetsExtension {
         runtimeTargets.add(NeoForge1201Target.runtimeTarget(minecraftVersion));
     }
 
+    public void forge(String minecraftVersion) {
+        if (!Forge1201Target.supports(minecraftVersion)) {
+            throw new IllegalStateException(
+                    "UMAPI currently only supports "
+                            + Forge1201Target.declaration()
+                            + "."
+            );
+        }
+
+        if (!forgeTargets.isEmpty()) {
+            throw new IllegalStateException(
+                    "UMAPI currently supports exactly one Forge target."
+            );
+        }
+
+        forgeTargets.add(new ForgeTarget(minecraftVersion));
+        runtimeTargets.add(Forge1201Target.runtimeTarget(minecraftVersion));
+    }
+
+    public void quilt(String minecraftVersion) {
+        if (!Quilt1201Target.supports(minecraftVersion)) {
+            throw new IllegalStateException(
+                    "UMAPI currently only supports "
+                            + Quilt1201Target.declaration()
+                            + "."
+            );
+        }
+
+        if (!quiltTargets.isEmpty()) {
+            throw new IllegalStateException(
+                    "UMAPI currently supports exactly one Quilt target."
+            );
+        }
+
+        quiltTargets.add(new QuiltTarget(minecraftVersion));
+        runtimeTargets.add(Quilt1201Target.runtimeTarget(minecraftVersion));
+    }
+
     void configureDeclaredTargets() {
         if (configured) {
             throw new IllegalStateException("UMAPI targets can only be configured once.");
@@ -104,6 +143,14 @@ public class UMAPITargetsExtension {
         return Collections.unmodifiableList(neoForgeTargets);
     }
 
+    public List<ForgeTarget> getForgeTargets() {
+        return Collections.unmodifiableList(forgeTargets);
+    }
+
+    public List<QuiltTarget> getQuiltTargets() {
+        return Collections.unmodifiableList(quiltTargets);
+    }
+
     List<UMAPIRuntimeTarget> getRuntimeTargets() {
         return Collections.unmodifiableList(runtimeTargets);
     }
@@ -122,6 +169,12 @@ public class UMAPITargetsExtension {
     public record NeoForgeTarget(String minecraftVersion) {
     }
 
+    public record ForgeTarget(String minecraftVersion) {
+    }
+
+    public record QuiltTarget(String minecraftVersion) {
+    }
+
     private void configureDirectTarget(UMAPIRuntimeTarget target) {
         configuredTarget = target;
 
@@ -133,6 +186,18 @@ public class UMAPITargetsExtension {
                     target.minecraftVersion()
             );
             case "neoforge" -> NeoForge1201Target.configure(
+                    project,
+                    umapiVersion,
+                    mod,
+                    target.minecraftVersion()
+            );
+            case "forge" -> Forge1201Target.configure(
+                    project,
+                    umapiVersion,
+                    mod,
+                    target.minecraftVersion()
+            );
+            case "quilt" -> Quilt1201Target.configure(
                     project,
                     umapiVersion,
                     mod,
@@ -158,7 +223,7 @@ public class UMAPITargetsExtension {
     }
 
     private void configureMultiTargetTasks() {
-        var exportUMAPI = getOrCreateExportTask();
+        var exportUMAPI = UMAPIExportTasks.getOrCreateExportTask(project);
 
         for (UMAPIRuntimeTarget target : runtimeTargets) {
             var exportTarget = registerTargetBuildTask(
@@ -172,13 +237,21 @@ public class UMAPITargetsExtension {
             registerTargetBuildTask(
                     target.clientTaskName(),
                     target,
-                    "Runs the " + displayName(target) + " UMAPI client runtime."
+                    UMAPIRuntimeTasks.description(
+                            target.loader(),
+                            target.minecraftVersion(),
+                            UMAPIRuntimeTasks.Side.CLIENT
+                    )
             );
 
             registerTargetBuildTask(
                     target.serverTaskName(),
                     target,
-                    "Runs the " + displayName(target) + " UMAPI server runtime."
+                    UMAPIRuntimeTasks.description(
+                            target.loader(),
+                            target.minecraftVersion(),
+                            UMAPIRuntimeTasks.Side.SERVER
+                    )
             );
         }
 
@@ -200,19 +273,6 @@ public class UMAPITargetsExtension {
                     gradleWrapperPath(),
                     "-P" + ACTIVE_TARGET_PROPERTY + "=" + target.id(),
                     taskName
-            );
-        });
-    }
-
-    private TaskProvider<Task> getOrCreateExportTask() {
-        if (project.getTasks().findByName(EXPORT_TASK) != null) {
-            return project.getTasks().named(EXPORT_TASK);
-        }
-
-        return project.getTasks().register(EXPORT_TASK, task -> {
-            task.setGroup("umapi");
-            task.setDescription(
-                    "Exports all configured UMAPI target jars to the UMAPI exports directory."
             );
         });
     }

@@ -122,12 +122,7 @@ public class UMAPIRuntimeExtension {
     }
 
     private static int loaderPreference(String loader) {
-        return switch (normalize(loader)) {
-            case "fabric" -> 0;
-            case "neoforge" -> 1;
-            case "forge" -> 2;
-            default -> 3;
-        };
+        return UMAPILoader.runtimePriority(loader);
     }
 
     private static boolean hasText(String value) {

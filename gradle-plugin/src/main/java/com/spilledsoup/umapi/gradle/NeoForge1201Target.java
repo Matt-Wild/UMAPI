@@ -2,12 +2,8 @@ package com.spilledsoup.umapi.gradle;
 
 import net.neoforged.gradle.dsl.common.runs.run.RunManager;
 import org.gradle.api.Project;
-import org.gradle.api.Task;
-import org.gradle.api.tasks.Copy;
 import org.gradle.api.tasks.SourceSetContainer;
-import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.compile.JavaCompile;
-import org.gradle.language.jvm.tasks.ProcessResources;
 
 import java.net.URI;
 import java.util.List;
@@ -16,8 +12,10 @@ final class NeoForge1201Target {
     private static final String MINECRAFT_VERSION = "1.20.1";
     private static final String PLATFORM_ARTIFACT_ID = "neoforge-1.20.1";
     private static final String NEOFORGE_VERSION = "1.20.1-47.1.106";
-    private static final String LOADER_ID = "neoforge";
-    private static final String RUNTIME_ID = "neoforge-1.20.1";
+    private static final UMAPILoader LOADER = UMAPILoader.NEOFORGE;
+    private static final String LOADER_ID = LOADER.id();
+    private static final UMAPITargetDescriptor TARGET =
+            new UMAPITargetDescriptor(LOADER_ID, MINECRAFT_VERSION);
     private static final String MINECRAFT_VERSION_RANGE = "[1.20.1,1.21)";
     private static final String FORGE_VERSION_RANGE = "[47.1.106,)";
     private static final String LOADER_VERSION_RANGE = "[47,)";
@@ -27,15 +25,12 @@ final class NeoForge1201Target {
     private static final String GENERATED_SOURCES_PATH = "generated/sources/umapi-neoforge/java";
     private static final String GENERATE_RESOURCES_TASK = "generateUMAPINeoForgeResources";
     private static final String GENERATE_ENTRYPOINT_TASK = "generateUMAPINeoForgeEntrypoint";
-    private static final String EXPORT_DIRECTORY = "umapi/exports";
-    private static final String EXPORT_TASK = "exportUMAPI";
-    private static final String EXPORT_NEOFORGE_1201_TASK = "exportUMAPINeoForge1201";
+    private static final String GENERATED_ENTRYPOINT_PACKAGE = "com.spilledsoup.umapi.generated.neoforge1201";
+    private static final String GENERATED_ENTRYPOINT_CLASS = "UMAPINeoForgeEntrypoint";
     private static final String NEOFORGE_1201_CLIENT_RUN = "neoForge1201Client";
     private static final String NEOFORGE_1201_SERVER_RUN = "neoForge1201Server";
     private static final String NATIVE_NEOFORGE_1201_CLIENT_TASK = "runNeoForge1201Client";
     private static final String NATIVE_NEOFORGE_1201_SERVER_TASK = "runNeoForge1201Server";
-    private static final String RUN_NEOFORGE_1201_CLIENT_TASK = "runUMAPINeoForge1201Client";
-    private static final String RUN_NEOFORGE_1201_SERVER_TASK = "runUMAPINeoForge1201Server";
 
     private NeoForge1201Target() {
     }
@@ -54,24 +49,27 @@ final class NeoForge1201Target {
             UMAPIModExtension mod,
             String minecraftVersion
     ) {
+        var target = descriptor(minecraftVersion);
+
         configureDependencies(project, umapiVersion);
         configureGeneratedResources(project, mod);
         configureGeneratedEntrypoint(project, mod);
-        configureRuntime(project);
-        configureExport(project, mod, minecraftVersion);
+        configureRuntime(project, target);
+        configureExport(project, mod, target);
 
-        return runtimeTarget(minecraftVersion);
+        return target.runtimeTarget();
     }
 
     static UMAPIRuntimeTarget runtimeTarget(String minecraftVersion) {
-        return new UMAPIRuntimeTarget(
-                RUNTIME_ID,
-                LOADER_ID,
-                minecraftVersion,
-                EXPORT_NEOFORGE_1201_TASK,
-                RUN_NEOFORGE_1201_CLIENT_TASK,
-                RUN_NEOFORGE_1201_SERVER_TASK
-        );
+        return descriptor(minecraftVersion).runtimeTarget();
+    }
+
+    private static UMAPITargetDescriptor descriptor(String minecraftVersion) {
+        if (MINECRAFT_VERSION.equals(minecraftVersion)) {
+            return TARGET;
+        }
+
+        return new UMAPITargetDescriptor(LOADER_ID, minecraftVersion);
     }
 
     private static void configureDependencies(Project project, String umapiVersion) {
@@ -94,13 +92,14 @@ final class NeoForge1201Target {
     }
 
     private static void configureGeneratedResources(Project project, UMAPIModExtension mod) {
-        var generatedResourcesDirectory = project.getLayout()
-                .getBuildDirectory()
-                .dir(GENERATED_RESOURCES_PATH);
+        var generatedResourcesDirectory = UMAPIGeneratedResources.directory(
+                project,
+                GENERATED_RESOURCES_PATH
+        );
 
         var generateResources = project.getTasks().register(
                 GENERATE_RESOURCES_TASK,
-                GenerateNeoForgeModsTomlTask.class,
+                GenerateForgeFamilyModsTomlTask.class,
                 task -> {
                     task.getOutputDirectory().set(generatedResourcesDirectory);
                     task.getModId().set(project.provider(mod::getId));
@@ -117,16 +116,11 @@ final class NeoForge1201Target {
                 }
         );
 
-        project.getExtensions().configure(
-                SourceSetContainer.class,
-                sourceSets -> sourceSets.named("main", main ->
-                        main.getResources().srcDir(generatedResourcesDirectory)
-                )
+        UMAPIGeneratedResources.wireMainResources(
+                project,
+                generatedResourcesDirectory,
+                generateResources
         );
-
-        project.getTasks()
-                .withType(ProcessResources.class)
-                .configureEach(task -> task.dependsOn(generateResources));
     }
 
     private static void configureGeneratedEntrypoint(Project project, UMAPIModExtension mod) {
@@ -136,11 +130,13 @@ final class NeoForge1201Target {
 
         var generateEntrypoint = project.getTasks().register(
                 GENERATE_ENTRYPOINT_TASK,
-                GenerateNeoForgeEntrypointTask.class,
+                GenerateForgeFamilyEntrypointTask.class,
                 task -> {
                     task.getOutputDirectory().set(generatedSourcesDirectory);
                     task.getModId().set(project.provider(mod::getId));
                     task.getModEntrypoint().set(project.provider(mod::getEntrypoint));
+                    task.getEntrypointPackage().set(GENERATED_ENTRYPOINT_PACKAGE);
+                    task.getEntrypointClassName().set(GENERATED_ENTRYPOINT_CLASS);
                 }
         );
 
@@ -156,7 +152,7 @@ final class NeoForge1201Target {
                 .configureEach(task -> task.dependsOn(generateEntrypoint));
     }
 
-    private static void configureRuntime(Project project) {
+    private static void configureRuntime(Project project, UMAPITargetDescriptor target) {
         project.getExtensions().configure(
                 SourceSetContainer.class,
                 sourceSets -> {
@@ -173,105 +169,37 @@ final class NeoForge1201Target {
                 }
         );
 
-        registerRuntimeTask(
+        UMAPIRuntimeTasks.registerWrapper(
                 project,
-                RUN_NEOFORGE_1201_CLIENT_TASK,
+                target.clientTaskName(),
                 NATIVE_NEOFORGE_1201_CLIENT_TASK,
-                "Runs the NeoForge 1.20.1 UMAPI client runtime."
+                target.loader(),
+                target.minecraftVersion(),
+                UMAPIRuntimeTasks.Side.CLIENT
         );
 
-        registerRuntimeTask(
+        UMAPIRuntimeTasks.registerWrapper(
                 project,
-                RUN_NEOFORGE_1201_SERVER_TASK,
+                target.serverTaskName(),
                 NATIVE_NEOFORGE_1201_SERVER_TASK,
-                "Runs the NeoForge 1.20.1 UMAPI server runtime."
+                target.loader(),
+                target.minecraftVersion(),
+                UMAPIRuntimeTasks.Side.SERVER
         );
-    }
-
-    private static void registerRuntimeTask(
-            Project project,
-            String taskName,
-            String nativeTaskName,
-            String description
-    ) {
-        project.getTasks().register(taskName, task -> {
-            task.setGroup("umapi");
-            task.setDescription(description);
-            task.dependsOn(nativeTaskName);
-        });
     }
 
     private static void configureExport(
             Project project,
             UMAPIModExtension mod,
-            String minecraftVersion
+            UMAPITargetDescriptor target
     ) {
-        var jar = project.getTasks().named("jar");
-
-        var exportTarget = project.getTasks().register(
-                EXPORT_NEOFORGE_1201_TASK,
-                Copy.class,
-                task -> {
-                    task.setGroup("umapi");
-                    task.setDescription(
-                            "Exports the NeoForge 1.20.1 mod jar to the UMAPI exports directory."
-                    );
-                    task.dependsOn(jar);
-                    task.from(jar);
-                    task.include("*.jar");
-                    task.into(project.getLayout().getBuildDirectory().dir(EXPORT_DIRECTORY));
-                    task.rename(ignored -> exportFileName(project, mod, minecraftVersion));
-                }
+        UMAPIExportTasks.registerJarExport(
+                project,
+                mod,
+                target,
+                project.getTasks().named("jar"),
+                "Exports the NeoForge 1.20.1 mod jar to the UMAPI exports directory."
         );
-
-        var exportUMAPI = getOrCreateExportTask(project);
-        exportUMAPI.configure(task -> task.dependsOn(exportTarget));
-
-        project.getTasks()
-                .named("assemble")
-                .configure(task -> task.dependsOn(exportUMAPI));
     }
 
-    private static TaskProvider<Task> getOrCreateExportTask(Project project) {
-        if (project.getTasks().findByName(EXPORT_TASK) != null) {
-            return project.getTasks().named(EXPORT_TASK);
-        }
-
-        return project.getTasks().register(EXPORT_TASK, task -> {
-            task.setGroup("umapi");
-            task.setDescription(
-                    "Exports all configured UMAPI target jars to the UMAPI exports directory."
-            );
-        });
-    }
-
-    private static String exportFileName(
-            Project project,
-            UMAPIModExtension mod,
-            String minecraftVersion
-    ) {
-        return sanitizeFileNamePart(mod.getName())
-                + "-v"
-                + sanitizeFileNamePart(project.getVersion().toString())
-                + "-neoforge-mc"
-                + sanitizeFileNamePart(minecraftVersion)
-                + ".jar";
-    }
-
-    private static String sanitizeFileNamePart(String value) {
-        if (value == null || value.isBlank()) {
-            return "unknown";
-        }
-
-        String sanitized = value.trim()
-                .replaceAll("[^A-Za-z0-9._-]+", "-")
-                .replaceAll("^-+", "")
-                .replaceAll("-+$", "");
-
-        if (sanitized.isBlank()) {
-            return "unknown";
-        }
-
-        return sanitized;
-    }
 }

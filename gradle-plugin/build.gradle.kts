@@ -19,6 +19,10 @@ gradlePlugin {
 
 repositories {
     maven {
+        name = "Quilt"
+        url = uri("https://maven.quiltmc.org/repository/release/")
+    }
+    maven {
         name = "Fabric"
         url = uri("https://maven.fabricmc.net/")
     }
@@ -26,13 +30,18 @@ repositories {
         name = "NeoForged"
         url = uri("https://maven.neoforged.net/releases/")
     }
+    maven {
+        name = "MinecraftForge"
+        url = uri("https://maven.minecraftforge.net/")
+    }
     mavenCentral()
     gradlePluginPortal()
 }
 
 dependencies {
-    implementation("net.fabricmc:fabric-loom:1.17.19")
     implementation("net.neoforged.gradle.userdev:net.neoforged.gradle.userdev.gradle.plugin:7.1.38")
+    implementation("net.minecraftforge.gradle:net.minecraftforge.gradle.gradle.plugin:7.0.31")
+    implementation("net.minecraftforge:renamer-gradle:1.1.5")
 }
 
 tasks.processResources {

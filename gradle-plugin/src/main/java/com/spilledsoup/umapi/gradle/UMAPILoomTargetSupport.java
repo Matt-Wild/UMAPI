@@ -1,0 +1,170 @@
+package com.spilledsoup.umapi.gradle;
+
+import org.gradle.api.Project;
+
+import java.lang.reflect.InvocationTargetException;
+import java.util.Set;
+
+final class UMAPILoomTargetSupport {
+    private static final String REMAPPED_UMAPI_CACHE_PATH =
+            ".gradle/loom-cache/remapped_mods/remapped/com/spilledsoup/umapi";
+    private static final String RUN_CLIENT_TASK = "runClient";
+    private static final String RUN_SERVER_TASK = "runServer";
+
+    private UMAPILoomTargetSupport() {
+    }
+
+    static void configureMinecraft(
+            Project project,
+            String loomPluginId,
+            String minecraftVersion,
+            String loaderDisplayName,
+            Set<String> runtimeTasks
+    ) {
+        project.getPluginManager().apply(loomPluginId);
+
+        project.getDependencies().add(
+                "minecraft",
+                "com.mojang:minecraft:" + minecraftVersion
+        );
+
+        invalidateLocalRuntimeRemapCache(project, loaderDisplayName, runtimeTasks);
+
+        project.getDependencies().add(
+                "mappings",
+                officialMojangMappings(project, loaderDisplayName)
+        );
+    }
+
+    static void addPlatformDependency(
+            Project project,
+            String platformArtifactId,
+            String umapiVersion
+    ) {
+        project.getDependencies().add(
+                "modImplementation",
+                "com.spilledsoup.umapi:" + platformArtifactId + ":" + umapiVersion
+        );
+    }
+
+    static void configureRuntime(
+            Project project,
+            UMAPITargetDescriptor target,
+            String clientDirectoryName,
+            String serverDirectoryName
+    ) {
+        UMAPILoomRunDirectories.configure(
+                project,
+                clientDirectoryName,
+                serverDirectoryName
+        );
+
+        UMAPIRuntimeTasks.registerWrapper(
+                project,
+                target.clientTaskName(),
+                RUN_CLIENT_TASK,
+                target.loader(),
+                target.minecraftVersion(),
+                UMAPIRuntimeTasks.Side.CLIENT
+        );
+
+        UMAPIRuntimeTasks.registerWrapper(
+                project,
+                target.serverTaskName(),
+                RUN_SERVER_TASK,
+                target.loader(),
+                target.minecraftVersion(),
+                UMAPIRuntimeTasks.Side.SERVER
+        );
+    }
+
+    static Set<String> runtimeTasks(UMAPITargetDescriptor target) {
+        return Set.of(
+                RUN_CLIENT_TASK,
+                RUN_SERVER_TASK,
+                target.clientTaskName(),
+                target.serverTaskName(),
+                "runUMAPIClient",
+                "runUMAPIServer"
+        );
+    }
+
+    private static Object officialMojangMappings(Project project, String loaderDisplayName) {
+        Object loom = project.getExtensions().getByName("loom");
+
+        try {
+            return loom.getClass()
+                    .getMethod("officialMojangMappings")
+                    .invoke(loom);
+        } catch (IllegalAccessException | NoSuchMethodException exception) {
+            throw new IllegalStateException(
+                    "Could not configure "
+                            + loaderDisplayName
+                            + " official Mojang mappings.",
+                    exception
+            );
+        } catch (InvocationTargetException exception) {
+            throw new IllegalStateException(
+                    "Could not configure "
+                            + loaderDisplayName
+                            + " official Mojang mappings.",
+                    exception.getCause()
+            );
+        }
+    }
+
+    private static void invalidateLocalRuntimeRemapCache(
+            Project project,
+            String loaderDisplayName,
+            Set<String> runtimeTasks
+    ) {
+        if (!isLocalUMAPIBuild(project) || !isRuntimeTaskRequested(project, runtimeTasks)) {
+            return;
+        }
+
+        var cacheDirectory = project.getLayout()
+                .getProjectDirectory()
+                .dir(REMAPPED_UMAPI_CACHE_PATH)
+                .getAsFile();
+
+        if (cacheDirectory.exists() && project.delete(cacheDirectory)) {
+            project.getLogger().lifecycle(
+                    "UMAPI local development runtime detected; invalidated "
+                            + loaderDisplayName
+                            + " Loom's remapped UMAPI cache."
+            );
+        }
+    }
+
+    private static boolean isLocalUMAPIBuild(Project project) {
+        return project.getGradle()
+                .getIncludedBuilds()
+                .stream()
+                .anyMatch(includedBuild ->
+                        "UMAPI".equalsIgnoreCase(includedBuild.getName())
+                                || "UMAPI".equalsIgnoreCase(includedBuild.getProjectDir().getName())
+                );
+    }
+
+    private static boolean isRuntimeTaskRequested(
+            Project project,
+            Set<String> runtimeTasks
+    ) {
+        return project.getGradle()
+                .getStartParameter()
+                .getTaskNames()
+                .stream()
+                .map(UMAPILoomTargetSupport::simpleTaskName)
+                .anyMatch(runtimeTasks::contains);
+    }
+
+    private static String simpleTaskName(String taskName) {
+        int separator = taskName.lastIndexOf(':');
+
+        if (separator == -1) {
+            return taskName;
+        }
+
+        return taskName.substring(separator + 1);
+    }
+}

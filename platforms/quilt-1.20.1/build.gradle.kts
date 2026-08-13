@@ -1,5 +1,5 @@
 plugins {
-    id("net.fabricmc.fabric-loom-remap") version "1.17-SNAPSHOT"
+    id("org.quiltmc.loom") version "1.14.3"
 }
 
 java {
@@ -12,8 +12,8 @@ dependencies {
     minecraft("com.mojang:minecraft:1.20.1")
     mappings(loom.officialMojangMappings())
 
-    modImplementation("net.fabricmc:fabric-loader:0.19.3")
-    modImplementation("net.fabricmc.fabric-api:fabric-api:0.92.11+1.20.1")
+    modImplementation("org.quiltmc:quilt-loader:0.29.2")
+    modImplementation("org.quiltmc.quilted-fabric-api:quilted-fabric-api:7.7.0+0.92.2-1.20.1")
 
     implementation(project(":api"))
 }
@@ -21,10 +21,10 @@ dependencies {
 loom {
     runs {
         named("client") {
-            runDir("runs/fabric1201Client")
+            runDir("runs/quilt1201Client")
         }
         named("server") {
-            runDir("runs/fabric1201Server")
+            runDir("runs/quilt1201Server")
         }
     }
 }
@@ -39,17 +39,17 @@ fun JavaExec.useUMAPIRunDirectory(name: String) {
 }
 
 tasks.named<JavaExec>("runClient") {
-    useUMAPIRunDirectory("fabric1201Client")
+    useUMAPIRunDirectory("quilt1201Client")
 }
 
 tasks.named<JavaExec>("runServer") {
-    useUMAPIRunDirectory("fabric1201Server")
+    useUMAPIRunDirectory("quilt1201Server")
 }
 
 tasks.processResources {
     inputs.property("version", project.version)
 
-    filesMatching("fabric.mod.json") {
+    filesMatching("quilt.mod.json") {
         expand("version" to project.version)
     }
 }
