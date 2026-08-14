@@ -6,8 +6,8 @@ import net.minecraftforge.gradle.SlimeLauncherOptions;
 import net.minecraftforge.gradle.shadow.net.minecraftforge.gradleutils.shared.ToolsExtension;
 import net.minecraftforge.renamer.gradle.RenamerExtension;
 import org.gradle.api.Project;
+import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.tasks.Copy;
-import org.gradle.api.tasks.Delete;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.bundling.Jar;
@@ -26,6 +26,7 @@ final class ForgeTargets {
     private static final String GENERATED_SOURCES_BASE_PATH = "generated/sources/umapi-forge";
     private static final String GENERATE_RESOURCES_TASK = "generateUMAPIForgeResources";
     private static final String CLEAN_STALE_MAIN_RESOURCES_TASK = "cleanUMAPIForgeStaleMainResources";
+    private static final String CLEAN_STALE_CLASS_RESOURCES_TASK = "cleanUMAPIForgeStaleClassResources";
     private static final String COPY_RESOURCES_TO_CLASSES_TASK = "copyUMAPIForgeResourcesToClasses";
     private static final String GENERATE_ENTRYPOINT_TASK = "generateUMAPIForgeEntrypoint";
     private static final String GENERATED_ENTRYPOINT_CLASS = "UMAPIForgeEntrypoint";
@@ -66,7 +67,8 @@ final class ForgeTargets {
     ) {
         project.getPluginManager().apply(FORGE_GRADLE_PLUGIN);
         project.getPluginManager().apply(FORGE_RENAMER_PLUGIN);
-        configureSlimeLauncher(project);
+        configureJava(project, definition.javaLanguageVersion());
+        configureSlimeLauncher(project, definition.javaLanguageVersion());
 
         project.getRepositories().maven(repository -> {
             repository.setName("MinecraftForge");
@@ -83,7 +85,7 @@ final class ForgeTargets {
         minecraft.mavenizer(project.getRepositories());
 
         project.getDependencies().addProvider("implementation", forge.asProvider());
-        configureRenamer(project, forge);
+        configureRenamer(project, forge, definition.javaLanguageVersion());
 
         project.getDependencies().add(
                 "implementation",
@@ -91,17 +93,21 @@ final class ForgeTargets {
         );
     }
 
-    private static void configureSlimeLauncher(Project project) {
+    private static void configureSlimeLauncher(Project project, int javaLanguageVersion) {
         var toolchains = project.getExtensions().getByType(JavaToolchainService.class);
-        var java17 = toolchains.launcherFor(spec -> spec.getLanguageVersion()
-                .set(JavaLanguageVersion.of(17)));
+        var javaLauncher = toolchains.launcherFor(spec -> spec.getLanguageVersion()
+                .set(JavaLanguageVersion.of(javaLanguageVersion)));
 
         project.getExtensions()
                 .getByType(ToolsExtension.class)
-                .configure(SLIME_LAUNCHER_TOOL, tool -> tool.getJavaLauncher().set(java17));
+                .configure(SLIME_LAUNCHER_TOOL, tool -> tool.getJavaLauncher().set(javaLauncher));
     }
 
-    private static void configureRenamer(Project project, MavenizerInstance forge) {
+    private static void configureRenamer(
+            Project project,
+            MavenizerInstance forge,
+            int javaLanguageVersion
+    ) {
         var renamer = project.getExtensions().getByType(RenamerExtension.class);
         var jar = project.getTasks().named("jar", Jar.class);
 
@@ -112,7 +118,7 @@ final class ForgeTargets {
                     task.getJavaLauncher().set(project.getExtensions()
                             .getByType(JavaToolchainService.class)
                             .launcherFor(spec -> spec.getLanguageVersion()
-                                    .set(JavaLanguageVersion.of(17))));
+                                    .set(JavaLanguageVersion.of(javaLanguageVersion))));
                     task.mappings(forge.getToSrg());
                 }
         );
@@ -154,29 +160,29 @@ final class ForgeTargets {
                 .getBuildDirectory()
                 .dir("resources/main");
 
-        var cleanStaleMainResources = project.getTasks().register(
+        var cleanStaleMainResources = UMAPIGeneratedResources.registerLoaderMetadataCleanup(
+                project,
                 CLEAN_STALE_MAIN_RESOURCES_TASK,
-                Delete.class,
-                task -> {
-                    task.delete(mainResourcesDirectory.map(directory ->
-                            directory.file("META-INF/mods.toml")
-                    ));
-                    task.delete(mainResourcesDirectory.map(directory ->
-                            directory.file("pack.mcmeta")
-                    ));
-                }
+                mainResourcesDirectory
         );
 
         project.getTasks()
                 .named("processResources")
                 .configure(task -> task.dependsOn(cleanStaleMainResources));
 
+        var cleanStaleClassResources = UMAPIGeneratedResources.registerLoaderMetadataCleanup(
+                project,
+                CLEAN_STALE_CLASS_RESOURCES_TASK,
+                compileJava.flatMap(JavaCompile::getDestinationDirectory)
+        );
+        cleanStaleClassResources.configure(task -> task.dependsOn(compileJava));
+
         var copyResourcesToClasses = project.getTasks().register(
                 COPY_RESOURCES_TO_CLASSES_TASK,
                 Copy.class,
                 task -> {
                     task.dependsOn(generateResources);
-                    task.dependsOn(compileJava);
+                    task.dependsOn(cleanStaleClassResources);
                     task.from(generatedResourcesDirectory);
                     task.into(compileJava.flatMap(JavaCompile::getDestinationDirectory));
                 }
@@ -290,5 +296,14 @@ final class ForgeTargets {
 
     private static String generatedSourcesPath(UMAPITargetDefinition target) {
         return UMAPIForgeFamilyTargetSupport.generatedJavaPath(GENERATED_SOURCES_BASE_PATH, target);
+    }
+
+    private static void configureJava(Project project, int javaLanguageVersion) {
+        project.getExtensions().configure(
+                JavaPluginExtension.class,
+                java -> java.getToolchain()
+                        .getLanguageVersion()
+                        .set(JavaLanguageVersion.of(javaLanguageVersion))
+        );
     }
 }

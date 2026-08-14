@@ -1,0 +1,24 @@
+modLoader="javafml"
+loaderVersion="[1,)"
+license="All Rights Reserved"
+
+[[mods]]
+modId="umapi"
+version="${version}"
+displayName="UMAPI"
+authors="SpilledSoup"
+description='''Universal Minecraft API'''
+
+[[dependencies.umapi]]
+modId="neoforge"
+type="required"
+versionRange="[21.8.54,21.9)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.umapi]]
+modId="minecraft"
+type="required"
+versionRange="[1.21.8]"
+ordering="NONE"
+side="BOTH"

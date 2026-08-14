@@ -40,6 +40,7 @@ repositories {
 
 dependencies {
     implementation("net.neoforged.gradle.userdev:net.neoforged.gradle.userdev.gradle.plugin:7.1.38")
+    implementation("net.neoforged.moddev:net.neoforged.moddev.gradle.plugin:2.0.143")
     implementation("net.minecraftforge.gradle:net.minecraftforge.gradle.gradle.plugin:7.0.31")
     implementation("net.minecraftforge:renamer-gradle:1.1.5")
 }

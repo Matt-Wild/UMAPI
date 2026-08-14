@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "umapi",
+  "version": "${version}",
+  "name": "UMAPI",
+  "description": "Universal Minecraft API",
+  "authors": [
+    "SpilledSoup"
+  ],
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.spilledsoup.umapi.platform.fabric12111.Fabric12111Entrypoint"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "minecraft": "1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}

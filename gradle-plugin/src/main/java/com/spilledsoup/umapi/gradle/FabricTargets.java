@@ -1,6 +1,8 @@
 package com.spilledsoup.umapi.gradle;
 
 import org.gradle.api.Project;
+import org.gradle.api.plugins.JavaPluginExtension;
+import org.gradle.jvm.toolchain.JavaLanguageVersion;
 
 final class FabricTargets {
     private static final UMAPILoader LOADER = UMAPILoader.FABRIC;
@@ -33,6 +35,8 @@ final class FabricTargets {
             String umapiVersion,
             UMAPITargetCatalog.FabricTarget definition
     ) {
+        configureJava(project, definition.javaLanguageVersion());
+
         UMAPILoomTargetSupport.configureLoomModDependencies(
                 project,
                 umapiVersion,
@@ -66,7 +70,7 @@ final class FabricTargets {
                     task.getModEntrypoint().set(project.provider(mod::getEntrypoint));
                     task.getMinecraftVersion().set(definition.target().minecraftVersion());
                     task.getFabricLoaderDependency().set(definition.fabricLoaderDependency());
-                    task.getJavaDependency().set(UMAPITargetCatalog.JAVA_17_DEPENDENCY);
+                    task.getJavaDependency().set(definition.javaDependency());
                     task.getUMAPIDependency().set(UMAPITargetCatalog.UMAPI_ANY_DEPENDENCY);
                 }
         );
@@ -76,6 +80,8 @@ final class FabricTargets {
                 generatedResourcesDirectory,
                 generateResources
         );
+
+        UMAPIGeneratedResources.cleanStaleCompiledLoaderMetadataBeforeJar(project);
     }
 
     private static void configureExport(
@@ -104,6 +110,15 @@ final class FabricTargets {
                 definition.clientWorkingDirectory(),
                 definition.serverWorkingDirectory(),
                 mod
+        );
+    }
+
+    private static void configureJava(Project project, int javaLanguageVersion) {
+        project.getExtensions().configure(
+                JavaPluginExtension.class,
+                java -> java.getToolchain()
+                        .getLanguageVersion()
+                        .set(JavaLanguageVersion.of(javaLanguageVersion))
         );
     }
 }

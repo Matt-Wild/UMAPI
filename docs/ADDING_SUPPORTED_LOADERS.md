@@ -49,12 +49,30 @@ Include all known target facts there:
 - Minecraft version
 - loader dependency version
 - platform API dependency version, if applicable
+- required Java language version and generated loader metadata Java dependency
 - Minecraft version range for generated metadata
 - loader version range for generated metadata
 - generated entrypoint package
 - resource pack format
 
 The catalog should be the first place to check when a target behaves differently from another version.
+
+Minecraft 1.20.5 and later require Java 21. Keep older 1.20.1 and 1.20.4 targets on Java 17, but make 1.20.6+ targets explicitly configure Java 21 and generated metadata such as `java: >=21`.
+
+NeoForge 1.20.x userdev targets should keep `neogradle.subsystems.decompiler.enabled=false` in `gradle.properties` unless source debugging inside Minecraft/NeoForge internals is specifically needed. This asks NeoGradle to use binary patch mode and avoid leaning on the slower generated-source recompilation pipeline.
+
+NeoForge 1.21.1+ targets should start from the current official ModDevGradle MDK shape instead. Use `net.neoforged.moddev`, configure `neoForge.enable { ... }`, and set recompilation off with `setDisableRecompilation(true)`. If a target reaches generated-source errors, compare against the official MDK for that Minecraft version and prefer the MDK's current NeoForge version before changing UMAPI platform code.
+
+Current NeoForge build-backend rule:
+
+- NeoForge 1.20.x targets use `net.neoforged.gradle.userdev`.
+- NeoForge 1.21.1+ targets should start with `net.neoforged.moddev`.
+
+When this boundary changes again, update the catalog/backend model first so consuming mods still only declare `neoforge("<minecraftVersion>")`.
+
+UMAPI currently disables ModDevGradle's own IDE integration for NeoForge 1.21.1+ targets. ModDevGradle tries to apply JetBrains' IDEA extension during IntelliJ Gradle sync, but Fabric/Quilt/IDE import code may already have registered the same `settings` extension. Keeping ModDevGradle's IDE integration off avoids reload failures; UMAPI's own `runUMAPINeoForge...Client` and `runUMAPINeoForge...Server` tasks remain the supported runtime entrypoints.
+
+NeoForge 1.21.10 and later use the newer `GameProfile.name()` accessor in the current mapping layer. Earlier tested NeoForge targets still use `GameProfile.getName()`.
 
 ### 2. Add the Platform Module
 
@@ -82,8 +100,15 @@ Start by copying the nearest known-good platform for the same loader, then reduc
 Current proven shared groups:
 
 - `platforms/shared/common`: loader-neutral helpers such as SLF4J logging.
-- `platforms/shared/fabriclike-1.20.x`: Fabric and Quilt 1.20.x player join and player wrapper logic.
+- `platforms/shared/fabriclike-1.20.1-plus`: Fabric and Quilt 1.20.1+ player join and player wrapper logic where compatibility has been proven.
 - `platforms/shared/forge-1.20.x`: Forge 1.20.x player join and player wrapper logic.
+- `platforms/shared/neoforge-1.20.4-plus`: NeoForge 1.20.4+ player join event wiring.
+- `platforms/shared/neoforge-player-gameprofile-getname`: NeoForge player wrapper for targets whose `GameProfile` exposes `getName()`.
+- `platforms/shared/neoforge-player-gameprofile-name`: NeoForge player wrapper for targets whose `GameProfile` exposes `name()`.
+
+NeoForge 1.20.1 is intentionally not part of the current shared NeoForge source band because it still uses older Forge-style packages and remapped Minecraft method names in places where newer NeoForge targets use named methods.
+
+Shared source bands are allowed to change shape as compatibility boundaries become clearer. If a future Minecraft or loader version breaks logic that was previously shared, split the affected code at the real version boundary instead of editing the old shared band in a way that risks known-good targets. For example, `fabriclike-1.20.1-plus` can become `fabriclike-1.20.1-to-1.21.11` plus `fabriclike-1.21.12-plus` if the event or player API changes at 1.21.12.
 
 Add shared source directories from the concrete platform build script:
 
@@ -240,6 +265,10 @@ Forge is the current exception to the normal resource wiring rule. During Forge 
 
 For Forge targets, generate `mods.toml` and `pack.mcmeta` into a target-specific generated folder, then copy those generated resources into the Java classes output so they sit beside the generated `@Mod` class. Also remove stale generated Forge metadata from `build/resources/main` before `processResources`, because older runs may have left files there.
 
+NeoForge 20.5 and later use `META-INF/neoforge.mods.toml` instead of `META-INF/mods.toml`. Keep the metadata filename in `UMAPITargetCatalog` so older NeoForge targets and newer NeoForge targets can coexist.
+
+Minecraft 1.21.9 and later changed pack metadata to use pack versions with minor versions. For those targets, keep the base `pack_format` but also generate `min_format` and `max_format` in `pack.mcmeta`.
+
 ## Runtime Task Best Practice
 
 Every target should expose:
@@ -361,11 +390,40 @@ When multiple targets are declared, UMAPI currently invokes target-specific nest
 
 This keeps incompatible loader plugins from being applied together, but it means generated outputs must be isolated by target. Do not use shared generated metadata paths.
 
+Target switching can also leave stale loader metadata in standard Gradle output directories such as `build/resources/main` and `build/classes/java/main`. UMAPI should clean known generated loader metadata (`fabric.mod.json`, `quilt.mod.json`, `pack.mcmeta`, `META-INF/mods.toml`, and `META-INF/neoforge.mods.toml`) before packaging a newly selected target. Do not solve duplicate metadata by setting jar duplicates to ignore; that can hide the wrong loader metadata in exported jars.
+
 ### Forge and NeoForge are related but not identical
 
 They can currently share generated Forge-family metadata and generated `@Mod` bridge concepts.
 
 They should not automatically share dependency setup, runtime setup, or Minecraft-bound event/player adapters unless the specific versions prove compatible.
+
+### NeoForge generated-source failures usually mean tooling first
+
+If an error points into `build/neoForm/.../transformSource/transformed`, treat it as a NeoForge tooling/setup issue before changing UMAPI platform source.
+
+Typical symptoms include missing Minecraft classes from generated files, such as imports under `com.mojang.blaze3d` or `net.minecraft` that cannot be found during `neoFormRecompile`.
+
+Use this order:
+
+1. Check the official NeoForge MDK for that exact Minecraft version.
+2. Match the MDK's Gradle plugin family first: NeoGradle userdev for older targets, ModDevGradle for current 1.21.x-style targets.
+3. Match the MDK's recommended NeoForge version before trying random patch versions.
+4. Prefer binary/no-recompile setup where available.
+5. Verify the isolated UMAPI platform compile before testing SampleMod.
+6. Verify SampleMod with `--project-prop=umapi.activeTarget=<loader-version>` before running a full export.
+
+Do not edit generated files under `build/neoForm`. Those files are disposable Gradle output; fixes belong in the platform build script, the target catalog, or the loader tooling selection.
+
+### ModDevGradle can collide with IntelliJ reload helpers
+
+If IntelliJ/Gradle reload fails with `Cannot add extension with name 'settings'`, the issue is ModDevGradle trying to apply JetBrains' IDEA extension after something else already registered it.
+
+For UMAPI targets, keep ModDevGradle's IDE integration disabled and use UMAPI's Gradle runtime wrappers instead of relying on loader-generated IntelliJ run configurations. Verify this path with a narrow command such as:
+
+```powershell
+.\gradlew.bat :platforms:neoforge-1.21.1:compileJava "-Didea.sync.active=true" --no-configuration-cache
+```
 
 ### Quilt is Fabric-like, but still separate
 

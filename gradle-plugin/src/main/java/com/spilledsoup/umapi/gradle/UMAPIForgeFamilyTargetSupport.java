@@ -38,7 +38,12 @@ final class UMAPIForgeFamilyTargetSupport {
                     task.getUseModernDependencyType().set(definition.useModernDependencyType());
                     task.getUMAPIVersionRange().set(UMAPITargetCatalog.UMAPI_FORGE_FAMILY_VERSION_RANGE);
                     task.getPackFormat().set(definition.resourcePackFormat());
+                    if (definition.resourcePackMinFormat() != null && definition.resourcePackMaxFormat() != null) {
+                        task.getPackMinFormat().set(definition.resourcePackMinFormat());
+                        task.getPackMaxFormat().set(definition.resourcePackMaxFormat());
+                    }
                     task.getPackDescription().set(project.provider(() -> mod.getName() + " resources"));
+                    task.getMetadataFileName().set(definition.metadataFileName());
                 }
         );
     }

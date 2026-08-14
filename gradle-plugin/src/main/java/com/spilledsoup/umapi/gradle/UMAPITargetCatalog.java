@@ -6,7 +6,10 @@ import java.util.stream.Stream;
 final class UMAPITargetCatalog {
     static final String FABRIC_LOOM_PLUGIN = "net.fabricmc.fabric-loom-remap";
     static final String QUILT_LOOM_PLUGIN = "org.quiltmc.loom";
+    static final int JAVA_17_LANGUAGE_VERSION = 17;
+    static final int JAVA_21_LANGUAGE_VERSION = 21;
     static final String JAVA_17_DEPENDENCY = ">=17";
+    static final String JAVA_21_DEPENDENCY = ">=21";
     static final String UMAPI_ANY_DEPENDENCY = "*";
     static final String UMAPI_FORGE_FAMILY_VERSION_RANGE = "[0,)";
 
@@ -15,13 +18,73 @@ final class UMAPITargetCatalog {
                     target(UMAPILoader.FABRIC, "1.20.1"),
                     "0.19.3",
                     ">=0.15.0",
-                    "0.92.11+1.20.1"
+                    "0.92.11+1.20.1",
+                    JAVA_17_LANGUAGE_VERSION,
+                    JAVA_17_DEPENDENCY
             ),
             new FabricTarget(
                     target(UMAPILoader.FABRIC, "1.20.4"),
                     "0.19.3",
                     ">=0.15.0",
-                    "0.97.3+1.20.4"
+                    "0.97.3+1.20.4",
+                    JAVA_17_LANGUAGE_VERSION,
+                    JAVA_17_DEPENDENCY
+            ),
+            new FabricTarget(
+                    target(UMAPILoader.FABRIC, "1.20.6"),
+                    "0.19.3",
+                    ">=0.15.0",
+                    "0.100.8+1.20.6",
+                    JAVA_21_LANGUAGE_VERSION,
+                    JAVA_21_DEPENDENCY
+            ),
+            new FabricTarget(
+                    target(UMAPILoader.FABRIC, "1.21.1"),
+                    "0.19.3",
+                    ">=0.15.0",
+                    "0.116.15+1.21.1",
+                    JAVA_21_LANGUAGE_VERSION,
+                    JAVA_21_DEPENDENCY
+            ),
+            new FabricTarget(
+                    target(UMAPILoader.FABRIC, "1.21.3"),
+                    "0.19.3",
+                    ">=0.15.0",
+                    "0.114.1+1.21.3",
+                    JAVA_21_LANGUAGE_VERSION,
+                    JAVA_21_DEPENDENCY
+            ),
+            new FabricTarget(
+                    target(UMAPILoader.FABRIC, "1.21.5"),
+                    "0.19.3",
+                    ">=0.15.0",
+                    "0.128.2+1.21.5",
+                    JAVA_21_LANGUAGE_VERSION,
+                    JAVA_21_DEPENDENCY
+            ),
+            new FabricTarget(
+                    target(UMAPILoader.FABRIC, "1.21.8"),
+                    "0.19.3",
+                    ">=0.15.0",
+                    "0.136.1+1.21.8",
+                    JAVA_21_LANGUAGE_VERSION,
+                    JAVA_21_DEPENDENCY
+            ),
+            new FabricTarget(
+                    target(UMAPILoader.FABRIC, "1.21.10"),
+                    "0.19.3",
+                    ">=0.15.0",
+                    "0.138.4+1.21.10",
+                    JAVA_21_LANGUAGE_VERSION,
+                    JAVA_21_DEPENDENCY
+            ),
+            new FabricTarget(
+                    target(UMAPILoader.FABRIC, "1.21.11"),
+                    "0.19.3",
+                    ">=0.15.0",
+                    "0.141.6+1.21.11",
+                    JAVA_21_LANGUAGE_VERSION,
+                    JAVA_21_DEPENDENCY
             )
     );
     private static final List<NeoForgeTarget> NEOFORGE_TARGETS = List.of(
@@ -34,9 +97,12 @@ final class UMAPITargetCatalog {
                     "[47,)",
                     false,
                     15,
+                    "mods.toml",
                     "com.spilledsoup.umapi.generated.neoforge1201",
                     "net.minecraftforge",
-                    ""
+                    "",
+                    JAVA_17_LANGUAGE_VERSION,
+                    NeoForgeBuildPlugin.NEOGRADLE_USERDEV
             ),
             new NeoForgeTarget(
                     target(UMAPILoader.NEOFORGE, "1.20.4"),
@@ -47,9 +113,124 @@ final class UMAPITargetCatalog {
                     "[1,)",
                     true,
                     22,
+                    "mods.toml",
                     "com.spilledsoup.umapi.generated.neoforge1204",
                     "net.neoforged",
-                    "net.neoforged.bus.api.IEventBus"
+                    "net.neoforged.bus.api.IEventBus",
+                    JAVA_17_LANGUAGE_VERSION,
+                    NeoForgeBuildPlugin.NEOGRADLE_USERDEV
+            ),
+            new NeoForgeTarget(
+                    target(UMAPILoader.NEOFORGE, "1.20.6"),
+                    "net.neoforged:neoforge:20.6.139",
+                    "[1.20.6,1.21)",
+                    "neoforge",
+                    "[20.6.139,20.7)",
+                    "[1,)",
+                    true,
+                    32,
+                    "neoforge.mods.toml",
+                    "com.spilledsoup.umapi.generated.neoforge1206",
+                    "net.neoforged",
+                    "net.neoforged.bus.api.IEventBus",
+                    JAVA_21_LANGUAGE_VERSION,
+                    NeoForgeBuildPlugin.NEOGRADLE_USERDEV
+            ),
+            new NeoForgeTarget(
+                    target(UMAPILoader.NEOFORGE, "1.21.1"),
+                    "net.neoforged:neoforge:21.1.244",
+                    "[1.21.1]",
+                    "neoforge",
+                    "[21.1.244,21.2)",
+                    "[1,)",
+                    true,
+                    34,
+                    "neoforge.mods.toml",
+                    "com.spilledsoup.umapi.generated.neoforge1211",
+                    "net.neoforged",
+                    "net.neoforged.bus.api.IEventBus",
+                    JAVA_21_LANGUAGE_VERSION,
+                    NeoForgeBuildPlugin.MODDEV_GRADLE
+            ),
+            new NeoForgeTarget(
+                    target(UMAPILoader.NEOFORGE, "1.21.3"),
+                    "net.neoforged:neoforge:21.3.96",
+                    "[1.21.3]",
+                    "neoforge",
+                    "[21.3.96,21.4)",
+                    "[1,)",
+                    true,
+                    42,
+                    "neoforge.mods.toml",
+                    "com.spilledsoup.umapi.generated.neoforge1213",
+                    "net.neoforged",
+                    "net.neoforged.bus.api.IEventBus",
+                    JAVA_21_LANGUAGE_VERSION,
+                    NeoForgeBuildPlugin.MODDEV_GRADLE
+            ),
+            new NeoForgeTarget(
+                    target(UMAPILoader.NEOFORGE, "1.21.5"),
+                    "net.neoforged:neoforge:21.5.98",
+                    "[1.21.5]",
+                    "neoforge",
+                    "[21.5.98,21.6)",
+                    "[1,)",
+                    true,
+                    55,
+                    "neoforge.mods.toml",
+                    "com.spilledsoup.umapi.generated.neoforge1215",
+                    "net.neoforged",
+                    "net.neoforged.bus.api.IEventBus",
+                    JAVA_21_LANGUAGE_VERSION,
+                    NeoForgeBuildPlugin.MODDEV_GRADLE
+            ),
+            new NeoForgeTarget(
+                    target(UMAPILoader.NEOFORGE, "1.21.8"),
+                    "net.neoforged:neoforge:21.8.54",
+                    "[1.21.8]",
+                    "neoforge",
+                    "[21.8.54,21.9)",
+                    "[1,)",
+                    true,
+                    64,
+                    "neoforge.mods.toml",
+                    "com.spilledsoup.umapi.generated.neoforge1218",
+                    "net.neoforged",
+                    "net.neoforged.bus.api.IEventBus",
+                    JAVA_21_LANGUAGE_VERSION,
+                    NeoForgeBuildPlugin.MODDEV_GRADLE
+            ),
+            new NeoForgeTarget(
+                    target(UMAPILoader.NEOFORGE, "1.21.10"),
+                    "net.neoforged:neoforge:21.10.64",
+                    "[1.21.10]",
+                    "neoforge",
+                    "[21.10.64,21.11)",
+                    "[1,)",
+                    true,
+                    69,
+                    "neoforge.mods.toml",
+                    "com.spilledsoup.umapi.generated.neoforge12110",
+                    "net.neoforged",
+                    "net.neoforged.bus.api.IEventBus",
+                    JAVA_21_LANGUAGE_VERSION,
+                    NeoForgeBuildPlugin.MODDEV_GRADLE
+            ),
+            new NeoForgeTarget(
+                    target(UMAPILoader.NEOFORGE, "1.21.11"),
+                    "net.neoforged:neoforge:21.11.45",
+                    "[1.21.11]",
+                    "neoforge",
+                    "[21.11.45,21.12)",
+                    "[1,)",
+                    true,
+                    75,
+                    "neoforge.mods.toml",
+                    "com.spilledsoup.umapi.generated.neoforge12111",
+                    "net.neoforged",
+                    "net.neoforged.bus.api.IEventBus",
+                    JAVA_21_LANGUAGE_VERSION,
+                    NeoForgeBuildPlugin.MODDEV_GRADLE
             )
     );
     private static final List<ForgeTarget> FORGE_TARGETS = List.of(
@@ -60,7 +241,8 @@ final class UMAPITargetCatalog {
                     "[47.4.10,)",
                     "[47,)",
                     15,
-                    "com.spilledsoup.umapi.generated.forge1201"
+                    "com.spilledsoup.umapi.generated.forge1201",
+                    JAVA_17_LANGUAGE_VERSION
             ),
             new ForgeTarget(
                     target(UMAPILoader.FORGE, "1.20.4"),
@@ -69,7 +251,18 @@ final class UMAPITargetCatalog {
                     "[49.2.8,)",
                     "[49,)",
                     22,
-                    "com.spilledsoup.umapi.generated.forge1204"
+                    "com.spilledsoup.umapi.generated.forge1204",
+                    JAVA_17_LANGUAGE_VERSION
+            ),
+            new ForgeTarget(
+                    target(UMAPILoader.FORGE, "1.20.6"),
+                    "1.20.6-50.2.10",
+                    "[1.20.6,1.21)",
+                    "[50.2.10,)",
+                    "[50,)",
+                    32,
+                    "com.spilledsoup.umapi.generated.forge1206",
+                    JAVA_21_LANGUAGE_VERSION
             )
     );
     private static final List<QuiltTarget> QUILT_TARGETS = List.of(
@@ -156,7 +349,9 @@ final class UMAPITargetCatalog {
             UMAPITargetDefinition target,
             String fabricLoaderVersion,
             String fabricLoaderDependency,
-            String fabricApiVersion
+            String fabricApiVersion,
+            int javaLanguageVersion,
+            String javaDependency
     ) implements CatalogTarget {
         String fabricLoaderDependencyNotation() {
             return "net.fabricmc:fabric-loader:" + fabricLoaderVersion;
@@ -172,13 +367,20 @@ final class UMAPITargetCatalog {
             String loaderVersionRange,
             boolean useModernDependencyType,
             int resourcePackFormat,
+            String metadataFileName,
             String generatedEntrypointPackage,
             String fmlPackageRoot,
-            String modEventBusParameterType
+            String modEventBusParameterType,
+            int javaLanguageVersion,
+            NeoForgeBuildPlugin buildPlugin
     ) implements ForgeFamilyTarget {
         @Override
         public String forgeVersionRange() {
             return neoForgeVersionRange;
+        }
+
+        String neoForgeVersion() {
+            return neoForgeDependency.substring(neoForgeDependency.lastIndexOf(':') + 1);
         }
     }
 
@@ -189,10 +391,12 @@ final class UMAPITargetCatalog {
             String forgeVersionRange,
             String loaderVersionRange,
             int resourcePackFormat,
-            String generatedEntrypointPackage
+            String generatedEntrypointPackage,
+            int javaLanguageVersion
     ) implements ForgeFamilyTarget {
         private static final String LOADER_DEPENDENCY_MOD_ID = "forge";
         private static final String FML_PACKAGE_ROOT = "net.minecraftforge";
+        private static final String METADATA_FILE_NAME = "mods.toml";
 
         String forgeDependencyNotation() {
             return "net.minecraftforge:forge:" + forgeVersion;
@@ -216,6 +420,11 @@ final class UMAPITargetCatalog {
         @Override
         public String modEventBusParameterType() {
             return "";
+        }
+
+        @Override
+        public String metadataFileName() {
+            return METADATA_FILE_NAME;
         }
     }
 
@@ -247,10 +456,35 @@ final class UMAPITargetCatalog {
 
         int resourcePackFormat();
 
+        default Integer resourcePackMinFormat() {
+            if (resourcePackFormat() >= 69) {
+                return resourcePackFormat();
+            }
+
+            return null;
+        }
+
+        default Integer resourcePackMaxFormat() {
+            if (resourcePackFormat() >= 69) {
+                return resourcePackFormat();
+            }
+
+            return null;
+        }
+
+        String metadataFileName();
+
         String generatedEntrypointPackage();
 
         String fmlPackageRoot();
 
         String modEventBusParameterType();
+
+        int javaLanguageVersion();
+    }
+
+    enum NeoForgeBuildPlugin {
+        NEOGRADLE_USERDEV,
+        MODDEV_GRADLE
     }
 }

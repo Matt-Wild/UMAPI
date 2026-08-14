@@ -11,6 +11,8 @@ java {
 extensions.configure<SourceSetContainer> {
     named("main") {
         java.srcDir("../shared/common/src/main/java")
+        java.srcDir("../shared/neoforge-1.20.4-plus/src/main/java")
+        java.srcDir("../shared/neoforge-player-gameprofile-getname/src/main/java")
     }
 }
 

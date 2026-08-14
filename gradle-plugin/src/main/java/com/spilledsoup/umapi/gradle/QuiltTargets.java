@@ -92,6 +92,8 @@ final class QuiltTargets {
                 generatedResourcesDirectory,
                 generateResources
         );
+
+        UMAPIGeneratedResources.cleanStaleCompiledLoaderMetadataBeforeJar(project);
     }
 
     private static void configureExport(

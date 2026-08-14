@@ -5,6 +5,7 @@ import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.provider.ListProperty;
 import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.Optional;
 import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.TaskAction;
 
@@ -52,7 +53,18 @@ public abstract class GenerateForgeFamilyModsTomlTask extends DefaultTask {
     public abstract Property<Integer> getPackFormat();
 
     @Input
+    @Optional
+    public abstract Property<Integer> getPackMinFormat();
+
+    @Input
+    @Optional
+    public abstract Property<Integer> getPackMaxFormat();
+
+    @Input
     public abstract Property<String> getPackDescription();
+
+    @Input
+    public abstract Property<String> getMetadataFileName();
 
     @OutputDirectory
     public abstract DirectoryProperty getOutputDirectory();
@@ -67,7 +79,7 @@ public abstract class GenerateForgeFamilyModsTomlTask extends DefaultTask {
 
             Files.createDirectories(metaInfDirectory);
             Files.writeString(
-                    metaInfDirectory.resolve("mods.toml"),
+                    metaInfDirectory.resolve(getMetadataFileName().get()),
                     renderModsToml(),
                     StandardCharsets.UTF_8
             );
@@ -78,7 +90,7 @@ public abstract class GenerateForgeFamilyModsTomlTask extends DefaultTask {
             );
         } catch (IOException exception) {
             throw new IllegalStateException(
-                    "Could not generate Forge-family mods.toml.",
+                    "Could not generate Forge-family mod metadata.",
                     exception
             );
         }
@@ -140,6 +152,27 @@ public abstract class GenerateForgeFamilyModsTomlTask extends DefaultTask {
     }
 
     private String renderPackMcmeta() {
+        Integer minFormat = getPackMinFormat().getOrNull();
+        Integer maxFormat = getPackMaxFormat().getOrNull();
+
+        if (minFormat != null && maxFormat != null) {
+            return """
+                    {
+                      "pack": {
+                        "pack_format": %d,
+                        "min_format": [%d, 0],
+                        "max_format": [%d, 0],
+                        "description": %s
+                      }
+                    }
+                    """.formatted(
+                    getPackFormat().get(),
+                    minFormat,
+                    maxFormat,
+                    quote(getPackDescription().get())
+            );
+        }
+
         return """
                 {
                   "pack": {
