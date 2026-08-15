@@ -13,7 +13,10 @@ public final class Quilt1204Entrypoint implements ModInitializer {
         UMAPI.initialise(new Quilt1204Platform());
         UMAPI.logger().info("UMAPI initialised for Quilt 1.20.4.");
 
-        QuiltLoader.getEntrypoints("umapi", UMAPIMod.class)
-                .forEach(UMAPIMod::initialise);
+        QuiltLoader.getEntrypointContainers("umapi", UMAPIMod.class)
+                .forEach(container -> UMAPI.loadMod(
+                        container.getProvider().metadata().id(),
+                        container.getEntrypoint()
+                ));
     }
 }

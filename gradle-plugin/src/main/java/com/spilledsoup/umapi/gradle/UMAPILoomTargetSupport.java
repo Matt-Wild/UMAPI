@@ -22,6 +22,24 @@ final class UMAPILoomTargetSupport {
             String loaderDisplayName,
             Set<String> runtimeTasks
     ) {
+        configureMinecraft(
+                project,
+                loomPluginId,
+                minecraftVersion,
+                loaderDisplayName,
+                runtimeTasks,
+                true
+        );
+    }
+
+    static void configureMinecraft(
+            Project project,
+            String loomPluginId,
+            String minecraftVersion,
+            String loaderDisplayName,
+            Set<String> runtimeTasks,
+            boolean useExplicitOfficialMojangMappings
+    ) {
         project.getPluginManager().apply(loomPluginId);
 
         project.getDependencies().add(
@@ -31,10 +49,12 @@ final class UMAPILoomTargetSupport {
 
         invalidateLocalRuntimeRemapCache(project, loaderDisplayName, runtimeTasks);
 
-        project.getDependencies().add(
-                "mappings",
-                officialMojangMappings(project, loaderDisplayName)
-        );
+        if (useExplicitOfficialMojangMappings) {
+            project.getDependencies().add(
+                    "mappings",
+                    officialMojangMappings(project, loaderDisplayName)
+            );
+        }
     }
 
     static void addPlatformDependency(
@@ -42,8 +62,22 @@ final class UMAPILoomTargetSupport {
             String platformArtifactId,
             String umapiVersion
     ) {
+        addPlatformDependency(
+                project,
+                platformArtifactId,
+                umapiVersion,
+                "modImplementation"
+        );
+    }
+
+    static void addPlatformDependency(
+            Project project,
+            String platformArtifactId,
+            String umapiVersion,
+            String dependencyConfiguration
+    ) {
         project.getDependencies().add(
-                "modImplementation",
+                dependencyConfiguration,
                 "com.spilledsoup.umapi:" + platformArtifactId + ":" + umapiVersion
         );
     }
@@ -56,22 +90,46 @@ final class UMAPILoomTargetSupport {
             UMAPILoader loader,
             String loaderDependencyNotation
     ) {
+        configureLoomModDependencies(
+                project,
+                umapiVersion,
+                target,
+                loomPluginId,
+                loader,
+                loaderDependencyNotation,
+                "modImplementation",
+                true
+        );
+    }
+
+    static void configureLoomModDependencies(
+            Project project,
+            String umapiVersion,
+            UMAPITargetDefinition target,
+            String loomPluginId,
+            UMAPILoader loader,
+            String loaderDependencyNotation,
+            String dependencyConfiguration,
+            boolean useExplicitOfficialMojangMappings
+    ) {
         configureMinecraft(
                 project,
                 loomPluginId,
                 target.minecraftVersion(),
                 loader.displayName(),
-                runtimeTasks(target.descriptor())
+                runtimeTasks(target.descriptor()),
+                useExplicitOfficialMojangMappings
         );
 
         addPlatformDependency(
                 project,
                 target.platformArtifactId(),
-                umapiVersion
+                umapiVersion,
+                dependencyConfiguration
         );
 
         project.getDependencies().add(
-                "modImplementation",
+                dependencyConfiguration,
                 loaderDependencyNotation
         );
     }

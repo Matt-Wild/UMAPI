@@ -24,7 +24,7 @@ final class FabricTargets {
 
         configureDependencies(project, umapiVersion, definition);
         configureGeneratedResources(project, mod, definition);
-        configureExport(project, mod, descriptor);
+        configureExport(project, mod, definition, descriptor);
         configureRuntime(project, mod, target, descriptor);
 
         return descriptor.runtimeTarget();
@@ -41,9 +41,11 @@ final class FabricTargets {
                 project,
                 umapiVersion,
                 definition.target(),
-                UMAPITargetCatalog.FABRIC_LOOM_PLUGIN,
+                definition.loomPluginId(),
                 LOADER,
-                definition.fabricLoaderDependencyNotation()
+                definition.fabricLoaderDependencyNotation(),
+                definition.dependencyConfiguration(),
+                definition.useExplicitOfficialMojangMappings()
         );
     }
 
@@ -75,10 +77,17 @@ final class FabricTargets {
                 }
         );
 
+        var generateContentResources = UMAPIContentResources.register(
+                project,
+                mod,
+                definition.target().minecraftVersion(),
+                generatedResourcesDirectory
+        );
+
         UMAPIGeneratedResources.wireMainResources(
                 project,
                 generatedResourcesDirectory,
-                generateResources
+                java.util.List.of(generateResources, generateContentResources)
         );
 
         UMAPIGeneratedResources.cleanStaleCompiledLoaderMetadataBeforeJar(project);
@@ -87,13 +96,14 @@ final class FabricTargets {
     private static void configureExport(
             Project project,
             UMAPIModExtension mod,
+            UMAPITargetCatalog.FabricTarget definition,
             UMAPITargetDescriptor target
     ) {
         UMAPIExportTasks.registerJarExport(
                 project,
                 mod,
                 target,
-                project.getTasks().named("remapJar"),
+                project.getTasks().named(definition.exportJarTaskName()),
                 "Exports the Fabric " + target.minecraftVersion() + " mod jar to the UMAPI exports directory."
         );
     }

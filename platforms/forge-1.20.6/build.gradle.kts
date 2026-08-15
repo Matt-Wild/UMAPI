@@ -17,7 +17,7 @@ java {
 extensions.configure<SourceSetContainer> {
     named("main") {
         java.srcDir("../shared/common/src/main/java")
-        java.srcDir("../shared/forge-1.20.x/src/main/java")
+        java.srcDir("../shared/forge-1.19.2-plus/src/main/java")
     }
 }
 

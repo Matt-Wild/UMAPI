@@ -67,6 +67,7 @@ public abstract class GenerateForgeFamilyEntrypointTask extends DefaultTask {
         return """
                 package %s;
 
+                import com.spilledsoup.umapi.UMAPI;
                 import com.spilledsoup.umapi.UMAPIMod;
                 import %s.fml.common.Mod;
                 import %s.fml.event.lifecycle.FMLCommonSetupEvent;
@@ -74,16 +75,19 @@ public abstract class GenerateForgeFamilyEntrypointTask extends DefaultTask {
 
                 @Mod(%s)
                 public final class %s {
+                    private final UMAPIMod mod = new %s();
 
                     public %s() {
-                        FMLJavaModLoadingContext.get()
-                                .getModEventBus()
-                                .addListener(this::initialise);
+                        var modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
+
+                        UMAPI.declareModContent(%s, mod);
+                        UMAPI.registerContent(%s, modEventBus);
+
+                        modEventBus.addListener(this::initialise);
                     }
 
                     private void initialise(FMLCommonSetupEvent event) {
-                        UMAPIMod mod = new %s();
-                        mod.initialise();
+                        UMAPI.initialiseMod(mod);
                     }
                 }
                 """.formatted(
@@ -93,8 +97,10 @@ public abstract class GenerateForgeFamilyEntrypointTask extends DefaultTask {
                 getFmlPackageRoot().get(),
                 quoteJavaString(getModId().get()),
                 getEntrypointClassName().get(),
+                getModEntrypoint().get(),
                 getEntrypointClassName().get(),
-                getModEntrypoint().get()
+                quoteJavaString(getModId().get()),
+                quoteJavaString(getModId().get())
         );
     }
 
@@ -102,20 +108,24 @@ public abstract class GenerateForgeFamilyEntrypointTask extends DefaultTask {
         return """
                 package %s;
 
+                import com.spilledsoup.umapi.UMAPI;
                 import com.spilledsoup.umapi.UMAPIMod;
                 import %s.fml.common.Mod;
                 import %s.fml.event.lifecycle.FMLCommonSetupEvent;
 
                 @Mod(%s)
                 public final class %s {
+                    private final UMAPIMod mod = new %s();
 
                     public %s(%s modEventBus) {
+                        UMAPI.declareModContent(%s, mod);
+                        UMAPI.registerContent(%s, modEventBus);
+
                         modEventBus.addListener(this::initialise);
                     }
 
                     private void initialise(FMLCommonSetupEvent event) {
-                        UMAPIMod mod = new %s();
-                        mod.initialise();
+                        UMAPI.initialiseMod(mod);
                     }
                 }
                 """.formatted(
@@ -124,9 +134,11 @@ public abstract class GenerateForgeFamilyEntrypointTask extends DefaultTask {
                 getFmlPackageRoot().get(),
                 quoteJavaString(getModId().get()),
                 getEntrypointClassName().get(),
+                getModEntrypoint().get(),
                 getEntrypointClassName().get(),
                 getModEventBusParameterType().get(),
-                getModEntrypoint().get()
+                quoteJavaString(getModId().get()),
+                quoteJavaString(getModId().get())
         );
     }
 

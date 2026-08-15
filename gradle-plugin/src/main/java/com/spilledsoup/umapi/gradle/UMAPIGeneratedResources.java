@@ -20,6 +20,7 @@ final class UMAPIGeneratedResources {
             "fabric.mod.json",
             "quilt.mod.json",
             "pack.mcmeta",
+            "mcmod.info",
             "META-INF/mods.toml",
             "META-INF/neoforge.mods.toml"
     );
@@ -38,6 +39,14 @@ final class UMAPIGeneratedResources {
             Provider<Directory> directory,
             TaskProvider<? extends Task> generatorTask
     ) {
+        wireMainResources(project, directory, List.of(generatorTask));
+    }
+
+    static void wireMainResources(
+            Project project,
+            Provider<Directory> directory,
+            List<TaskProvider<? extends Task>> generatorTasks
+    ) {
         project.getExtensions().configure(
                 SourceSetContainer.class,
                 sourceSets -> sourceSets.named("main", main ->
@@ -55,7 +64,7 @@ final class UMAPIGeneratedResources {
                 .withType(ProcessResources.class)
                 .configureEach(task -> {
                     task.dependsOn(cleanStaleMainResources);
-                    task.dependsOn(generatorTask);
+                    generatorTasks.forEach(task::dependsOn);
                 });
     }
 

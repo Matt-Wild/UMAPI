@@ -91,10 +91,17 @@ final class NeoForgeTargets {
                 GENERATE_RESOURCES_TASK
         );
 
+        var generateContentResources = UMAPIContentResources.register(
+                project,
+                mod,
+                target.minecraftVersion(),
+                generatedResourcesDirectory
+        );
+
         UMAPIGeneratedResources.wireMainResources(
                 project,
                 generatedResourcesDirectory,
-                generateResources
+                java.util.List.of(generateResources, generateContentResources)
         );
 
         UMAPIGeneratedResources.cleanStaleCompiledLoaderMetadataBeforeJar(project);

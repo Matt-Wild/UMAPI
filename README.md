@@ -20,7 +20,6 @@ UMAPI's target list should stay focused on major modding versions rather than ev
 
 | Minecraft version | Planned loaders |
 | --- | --- |
-| 1.12.2 | Forge |
 | 1.16.5 | Forge |
 | 1.18.2 | Fabric, Forge |
 | 1.19.2 | Fabric, Forge |
@@ -36,7 +35,7 @@ UMAPI's target list should stay focused on major modding versions rather than ev
 | 26.1.2 | Fabric, NeoForge |
 | 26.2 | Fabric, NeoForge |
 
-Older Forge targets exist to cover established legacy modpack versions. Fabric and NeoForge are the preferred forward path for modern Minecraft versions. Quilt should stay optional and only be implemented where it is useful for a SpilledSoup mod.
+Older Forge targets exist to cover established legacy modpack versions, but targets that force Java 8-only shared mod code are intentionally out of scope. Fabric and NeoForge are the preferred forward path for modern Minecraft versions. Quilt should stay optional and only be implemented where it is useful for a SpilledSoup mod.
 
 ## Repository Layout
 
@@ -53,15 +52,15 @@ platforms/
 
 `settings-plugin` contains the lightweight `com.spilledsoup.umapi.settings` Gradle settings plugin. It runs before project plugins and adds the repositories needed to resolve UMAPI's loader tooling.
 
-`platforms` contains loader/version-specific implementations. For example, Fabric platforms cover 1.20.1 through 1.21.11, NeoForge platforms cover 1.20.1 through 1.21.11, Forge platforms currently cover 1.20.1 through 1.20.6, and Quilt platforms currently cover 1.20.1 and 1.20.4. `platforms/shared` contains source-only shared platform logic that concrete platform modules explicitly opt into when the same logic is proven compatible.
+`platforms` contains loader/version-specific implementations. For example, Fabric platforms cover 1.18.2 through 26.2, NeoForge platforms cover 1.20.1 through 26.2, Forge platforms currently cover 1.16.5 through 1.20.6, and Quilt platforms currently cover 1.20.1 and 1.20.4. `platforms/shared` contains source-only shared platform logic that concrete platform modules explicitly opt into when the same logic is proven compatible.
 
 ## Current State
 
-The first known-good path is Fabric for Minecraft 1.20.1. SampleMod has successfully launched through this path and displayed its welcome message in chat. UMAPI also has tested Fabric and NeoForge 1.20.1 targets, initial Forge and Quilt 1.20.1 targets, Fabric, NeoForge, Forge, and Quilt 1.20.4 targets, Fabric, NeoForge, and Forge 1.20.6 targets, and Fabric and NeoForge 1.21.1 targets. Fabric and NeoForge 1.21.3, 1.21.5, 1.21.8, 1.21.10, and 1.21.11 have initial target implementations ready for testing.
+The first known-good path is Fabric for Minecraft 1.20.1. SampleMod has successfully launched through this path and displayed its welcome message in chat. UMAPI also has tested Fabric and NeoForge 1.20.1 targets, initial Forge and Quilt 1.20.1 targets, Fabric, NeoForge, Forge, and Quilt 1.20.4 targets, Fabric, NeoForge, and Forge 1.20.6 targets, and Fabric and NeoForge 1.21.1 targets. Forge 1.16.5, Fabric and Forge 1.18.2 and 1.19.2, plus Fabric and NeoForge 1.21.3, 1.21.5, 1.21.8, 1.21.10, 1.21.11, 26.1.2, and 26.2 have initial target implementations ready for testing.
 
 The Gradle plugin currently:
 
-- applies Java and configures Java 17 for consuming mod code
+- applies Java and configures the target-specific Java toolchain for consuming mod code
 - applies Fabric Loom, NeoGradle/ModDevGradle, ForgeGradle, or Quilt Loom for the selected declared target
 - adds Minecraft, mappings, loader, and UMAPI platform dependencies for the selected target
 - adds the shared UMAPI API as a compile-only dependency for consuming mod code
@@ -81,6 +80,8 @@ umapi {
     }
 
     targets {
+        fabric("1.18.2")
+        fabric("1.19.2")
         fabric("1.20.1")
         fabric("1.20.4")
         fabric("1.20.6")
@@ -90,6 +91,8 @@ umapi {
         fabric("1.21.8")
         fabric("1.21.10")
         fabric("1.21.11")
+        fabric("26.1.2")
+        fabric("26.2")
         neoforge("1.20.1")
         neoforge("1.20.4")
         neoforge("1.20.6")
@@ -99,6 +102,11 @@ umapi {
         neoforge("1.21.8")
         neoforge("1.21.10")
         neoforge("1.21.11")
+        neoforge("26.1.2")
+        neoforge("26.2")
+        forge("1.16.5")
+        forge("1.18.2")
+        forge("1.19.2")
         forge("1.20.1")
         forge("1.20.4")
         forge("1.20.6")
@@ -137,52 +145,69 @@ If no runtime default is declared, UMAPI chooses the latest declared Minecraft v
 
 UMAPI now keeps supported loader/version facts in `UMAPITargetCatalog`. New targets should start there so dependency versions, loader version ranges, Minecraft version ranges, generated package names, and resource pack formats do not get scattered through the Gradle plugin.
 
-Fabric and Quilt are currently treated as Loom-family targets. Their shared setup lives in `UMAPILoomTargetSupport`, including Minecraft dependency setup, official Mojang mappings, UMAPI platform dependency setup, loader dependency setup, runtime task registration, run directory handling, Loom mod-source registration, and the current run-task configuration-cache workaround.
+Fabric and Quilt are currently treated as Loom-family targets. Their shared setup lives in `UMAPILoomTargetSupport`, including Minecraft dependency setup, mapping setup where required, UMAPI platform dependency setup, loader dependency setup, runtime task registration, run directory handling, Loom mod-source registration, and the current run-task configuration-cache workaround.
 
 Forge and NeoForge are currently treated as Forge-family targets for generated metadata and generated Java entrypoint bridges. Their shared generated-resource and generated-source wiring lives in `UMAPIForgeFamilyTargetSupport`. Their dependency and runtime setup remain separate because ForgeGradle and NeoGradle behave differently.
+
+ForgeGradle userdev run discovery expects generated Forge metadata in the standard `build/resources/main` output. Forge 1.16.5 is especially strict here: if `META-INF/mods.toml` only exists in the compiled classes output, UMAPI can load while the consuming mod is skipped.
 
 The current 1.20.x platform implementations share the neutral `AbstractPlatform` base class. Shared Minecraft-bound implementation code lives under `platforms/shared` and is grouped by proven compatibility rather than by ideal loader families. The current source-only shared groups are:
 
 - `platforms/shared/common` for loader-neutral platform implementation helpers such as SLF4J logging
-- `platforms/shared/fabriclike-1.20.1-plus` for currently compatible Fabric and Quilt player join and player wrapper logic
-- `platforms/shared/forge-1.20.x` for Forge 1.20.x player join and player wrapper logic
+- `platforms/shared/fabriclike-1.19.2-plus` for currently compatible Fabric 1.19.2+, Quilt 1.20.x, and Minecraft 26.x Fabric-like player join and player wrapper logic
+- `platforms/shared/forge-1.19.2-plus` for Forge 1.19.2+ player join and player wrapper logic
 
 NeoForge event and player adapters remain per target for now because NeoForge 1.20.1 and NeoForge 1.20.4 currently use meaningfully different API shapes.
 
 Current known shared assumptions:
 
-- Java 17 is enough for the implemented 1.20.1 and 1.20.4 targets.
+- The shared UMAPI API artifact uses Java 17 as its current baseline.
+- Forge 1.12.2 is intentionally not supported because its Java 8 runtime requirement would force the shared mod code floor too low for the rest of UMAPI.
+- Forge 1.16.5 uses the Java 17 toolchain path used by the current ForgeGradle setup.
+- Java 17 is enough for the implemented 1.18.2, 1.19.2, 1.20.1, and 1.20.4 targets.
 - Minecraft 1.20.5+ targets, including the current 1.20.6 and 1.21.x targets, require Java 21.
-- Fabric and Quilt targets use Loom-style Minecraft, mappings, remap, and run task setup.
-- Fabric 1.20.1, Fabric 1.20.4, Fabric 1.20.6, Fabric 1.21.x, and Quilt 1.20.x targets share the same Fabric-like player join event hook and player wrapper.
-- Forge 1.20.1 and Forge 1.20.4 share the same Forge player login event hook and player wrapper.
-- Forge 1.20.6 currently opts into the same Forge 1.20.x player login event hook and player wrapper until runtime testing proves otherwise.
+- Minecraft 26.1.2 and 26.2 require Java 25.
+- Fabric and Quilt targets use Loom-style Minecraft and run task setup.
+- Fabric 26.x uses the non-remapping `net.fabricmc.fabric-loom` plugin path, regular `implementation` dependencies, no explicit mappings dependency, and `jar` for export.
+- Fabric 1.18.2 keeps its event/player adapters per target because its chat path still uses the older `TextComponent` API.
+- Forge 1.16.5 and 1.18.2 keep their event/player adapters per target because their player/chat and login-event APIs differ from Forge 1.19.2+.
+- Fabric 1.19.2, Fabric 1.20.x, Fabric 1.21.x, Fabric 26.x, and Quilt 1.20.x targets share the same Fabric-like player join event hook and player wrapper.
+- Forge 1.19.2 and Forge 1.20.x targets share the same Forge player login event hook and player wrapper.
 - Forge and NeoForge 1.20.x+ targets can share generated `mods.toml`, `pack.mcmeta`, and generated `@Mod` bridge concepts.
-- NeoForge 1.21.x targets use ModDevGradle with recompilation disabled, matching the current official NeoForge 1.21.x MDK direction and avoiding brittle generated-source recompilation.
+- NeoForge 1.21.x and 26.x targets use ModDevGradle with recompilation disabled, matching the current official NeoForge MDK direction and avoiding brittle generated-source recompilation.
 - NeoForge 1.20.6+ uses `META-INF/neoforge.mods.toml` instead of `META-INF/mods.toml`.
-- `Component.literal(...)` is still valid for the current 1.20.x and 1.21.x player-message adapters.
+- Minecraft 1.16.5 and 1.18.2 use the older `TextComponent` player-message path.
+- `Component.literal(...)` is still valid for the current 1.19.2, 1.20.x, 1.21.x, and 26.x player-message adapters.
 
 ## Class Responsibilities
 
 ### Shared API
 
-`UMAPI` is the static entry point used by mods. It stores the active platform implementation, exposes shared services such as `events()`, and guards against use before the platform has initialised UMAPI.
+`UMAPI` is the static entry point used by mods. It stores the active platform implementation, exposes shared services such as `events()`, `logger()`, and `environment()`, and guards against use before the platform has initialised UMAPI.
 
 `UMAPIMod` is the neutral lifecycle interface implemented by consuming mods. Platform code invokes `initialise()` after UMAPI is ready.
 
-`Platform` is the abstraction implemented by each loader/version platform. It exposes the services that the shared API can delegate to.
+`RuntimeEnvironment`, `MinecraftVersion`, and `ModLoader` expose the active loader and Minecraft version to consuming mods. Mods can use them for simple compatibility branches while keeping feature-specific decisions in the mod.
 
-`AbstractPlatform` is the small shared base for platform implementations that simply hold an `Events` implementation and a `Logger` implementation.
+`VersionedValue` stores values that can vary by Minecraft version and selects the best available value for the active runtime. It supports an optional fallback value for defaults, then exact or nearest-version values for targeted overrides. Textures use this first, but the same primitive can later support versioned models, worldgen values, recipes, or other content data.
+
+`ContentRegistry` is the neutral content declaration graph used by consuming mods. It currently supports item definitions only, and will expand one content type at a time.
+
+`ItemContent` is the neutral definition for a simple item. It stores the item id, display name, and texture paths with optional version-specific overrides without exposing Minecraft item classes or loader registration APIs to consuming mods.
+
+`Platform` is the abstraction implemented by each loader/version platform. It exposes the active runtime environment and the services that the shared API can delegate to.
+
+`AbstractPlatform` is the small shared base for platform implementations that hold the runtime environment, an `Events` implementation, and a `Logger` implementation.
 
 `Slf4jLogger` is the shared platform logging adapter. It maps UMAPI logging calls to the SLF4J logging environment supplied by the active loader.
 
-`FabricLikeEvents` is the shared Fabric/Quilt 1.20.x event adapter. It maps Fabric API/QFAPI player join callbacks to `Events.onPlayerJoin`.
+`FabricLikeEvents` is the shared Fabric-like 1.19.2+ event adapter. It maps Fabric API/QFAPI player join callbacks to `Events.onPlayerJoin`.
 
-`FabricLikePlayer` is the shared Fabric/Quilt 1.20.x player adapter. It adapts Minecraft's `ServerPlayer` to the shared `Player` interface for the current Fabric-like 1.20.x targets.
+`FabricLikePlayer` is the shared Fabric-like 1.19.2+ player adapter. It adapts Minecraft's `ServerPlayer` to the shared `Player` interface for compatible Fabric and Quilt targets.
 
-`Forge120xEvents` is the shared Forge 1.20.x event adapter. It maps Forge's player login event to `Events.onPlayerJoin`.
+`ForgeEvents` is the shared Forge 1.19.2+ event adapter. It maps Forge's player login event to `Events.onPlayerJoin`.
 
-`Forge120xPlayer` is the shared Forge 1.20.x player adapter. It adapts Minecraft's `ServerPlayer` to the shared `Player` interface for the current Forge 1.20.x targets.
+`ForgePlayer` is the shared Forge 1.19.2+ player adapter. It adapts Minecraft's `ServerPlayer` to the shared `Player` interface for compatible Forge targets.
 
 `Events` is the current shared event surface. It lets mods register callbacks without depending on Fabric event classes.
 
@@ -254,6 +279,18 @@ Current known shared assumptions:
 
 `GenerateForgeFamilyEntrypointTask` is the typed Gradle task that writes a small generated `@Mod` bridge for consuming mods, so SampleMod can keep using `UMAPIMod` instead of a Forge-family Java entrypoint.
 
+### Fabric 1.18.2 Platform
+
+`Fabric1182Entrypoint` is the Fabric loader entrypoint. It initialises UMAPI with the Fabric 1.18.2 platform and then invokes all consuming mod entrypoints registered under UMAPI's `umapi` entrypoint key.
+
+`Fabric1182Platform` is the Fabric 1.18.2 implementation of `Platform`. It wires shared UMAPI services to the target-local Fabric 1.18.2 event/player adapters and shared SLF4J logger.
+
+### Fabric 1.19.2 Platform
+
+`Fabric1192Entrypoint` is the Fabric loader entrypoint. It initialises UMAPI with the Fabric 1.19.2 platform and then invokes all consuming mod entrypoints registered under UMAPI's `umapi` entrypoint key.
+
+`Fabric1192Platform` is the Fabric 1.19.2 implementation of `Platform`. It wires shared UMAPI services to the shared Fabric-like event/player adapters and shared SLF4J logger.
+
 ### Fabric 1.20.1 Platform
 
 `Fabric1201Entrypoint` is the Fabric loader entrypoint. It initialises UMAPI with the Fabric 1.20.1 platform and then invokes all consuming mod entrypoints registered under UMAPI's `umapi` entrypoint key.
@@ -308,6 +345,18 @@ Current known shared assumptions:
 
 `Fabric12111Platform` is the Fabric 1.21.11 implementation of `Platform`. It wires shared UMAPI services to the shared Fabric-like event/player adapters and shared SLF4J logger.
 
+### Fabric 26.1.2 Platform
+
+`Fabric2612Entrypoint` is the Fabric loader entrypoint. It initialises UMAPI with the Fabric 26.1.2 platform and then invokes all consuming mod entrypoints registered under UMAPI's `umapi` entrypoint key.
+
+`Fabric2612Platform` is the Fabric 26.1.2 implementation of `Platform`. It wires shared UMAPI services to the shared Fabric-like event/player adapters and shared SLF4J logger.
+
+### Fabric 26.2 Platform
+
+`Fabric262Entrypoint` is the Fabric loader entrypoint. It initialises UMAPI with the Fabric 26.2 platform and then invokes all consuming mod entrypoints registered under UMAPI's `umapi` entrypoint key.
+
+`Fabric262Platform` is the Fabric 26.2 implementation of `Platform`. It wires shared UMAPI services to the shared Fabric-like event/player adapters and shared SLF4J logger.
+
 ### NeoForge 1.20.1 Platform
 
 `NeoForge1201Entrypoint` is the NeoForge loader entrypoint. It initialises UMAPI with the NeoForge 1.20.1 platform.
@@ -334,33 +383,49 @@ The matching `NeoForge1204Platform`, `NeoForge1206Platform`, `NeoForge1211Platfo
 
 `platforms/shared/neoforge-player-gameprofile-getname` adapts Minecraft's `ServerPlayer` to the shared `Player` interface for NeoForge targets whose `GameProfile` exposes `getName()`.
 
-### NeoForge 1.21.10+ Platforms
+### NeoForge 1.21.10+ and 26.x Platforms
 
 `NeoForge12110Entrypoint` is the NeoForge loader entrypoint. It initialises UMAPI with the NeoForge 1.21.10 platform.
 
 `NeoForge12111Entrypoint` is the NeoForge loader entrypoint. It initialises UMAPI with the NeoForge 1.21.11 platform.
 
-The matching `NeoForge12110Platform` and `NeoForge12111Platform` classes wire shared UMAPI services to the shared NeoForge 1.20.4+ event adapter, the shared `GameProfile.name()` player adapter, and the shared SLF4J logger.
+`NeoForge2612Entrypoint` is the NeoForge loader entrypoint. It initialises UMAPI with the NeoForge 26.1.2 platform.
+
+`NeoForge262Entrypoint` is the NeoForge loader entrypoint. It initialises UMAPI with the NeoForge 26.2 platform.
+
+The matching `NeoForge12110Platform`, `NeoForge12111Platform`, `NeoForge2612Platform`, and `NeoForge262Platform` classes wire shared UMAPI services to the shared NeoForge 1.20.4+ event adapter, the shared `GameProfile.name()` player adapter, and the shared SLF4J logger.
 
 `platforms/shared/neoforge-player-gameprofile-name` adapts Minecraft's `ServerPlayer` to the shared `Player` interface for NeoForge targets whose `GameProfile` exposes `name()`.
+
+### Forge 1.18.2 Platform
+
+`Forge1182Entrypoint` is the Forge loader entrypoint. It initialises UMAPI with the Forge 1.18.2 platform.
+
+`Forge1182Platform` is the Forge 1.18.2 implementation of `Platform`. It wires shared UMAPI services to the target-local Forge 1.18.2 event/player adapters and shared SLF4J logger.
+
+### Forge 1.19.2 Platform
+
+`Forge1192Entrypoint` is the Forge loader entrypoint. It initialises UMAPI with the Forge 1.19.2 platform.
+
+`Forge1192Platform` is the Forge 1.19.2 implementation of `Platform`. It wires shared UMAPI services to the shared Forge 1.19.2+ event/player adapters and shared SLF4J logger.
 
 ### Forge 1.20.1 Platform
 
 `Forge1201Entrypoint` is the Forge loader entrypoint. It initialises UMAPI with the Forge 1.20.1 platform.
 
-`Forge1201Platform` is the Forge implementation of `Platform`. It wires shared UMAPI services to the shared Forge 1.20.x event/player adapters and shared SLF4J logger.
+`Forge1201Platform` is the Forge implementation of `Platform`. It wires shared UMAPI services to the shared Forge 1.19.2+ event/player adapters and shared SLF4J logger.
 
 ### Forge 1.20.4 Platform
 
 `Forge1204Entrypoint` is the Forge loader entrypoint. It initialises UMAPI with the Forge 1.20.4 platform.
 
-`Forge1204Platform` is the Forge 1.20.4 implementation of `Platform`. It wires shared UMAPI services to the shared Forge 1.20.x event/player adapters and shared SLF4J logger.
+`Forge1204Platform` is the Forge 1.20.4 implementation of `Platform`. It wires shared UMAPI services to the shared Forge 1.19.2+ event/player adapters and shared SLF4J logger.
 
 ### Forge 1.20.6 Platform
 
 `Forge1206Entrypoint` is the Forge loader entrypoint. It initialises UMAPI with the Forge 1.20.6 platform.
 
-`Forge1206Platform` is the Forge 1.20.6 implementation of `Platform`. It wires shared UMAPI services to the shared Forge 1.20.x event/player adapters and shared SLF4J logger.
+`Forge1206Platform` is the Forge 1.20.6 implementation of `Platform`. It wires shared UMAPI services to the shared Forge 1.19.2+ event/player adapters and shared SLF4J logger.
 
 ### Quilt 1.20.1 Platform
 
@@ -407,6 +472,8 @@ Use `exportUMAPI` when every declared target jar is needed:
 Use a target-specific export task when only one jar is needed:
 
 ```powershell
+.\gradlew.bat exportUMAPIFabric1182
+.\gradlew.bat exportUMAPIFabric1192
 .\gradlew.bat exportUMAPIFabric1201
 .\gradlew.bat exportUMAPIFabric1204
 .\gradlew.bat exportUMAPIFabric1206
@@ -416,6 +483,8 @@ Use a target-specific export task when only one jar is needed:
 .\gradlew.bat exportUMAPIFabric1218
 .\gradlew.bat exportUMAPIFabric12110
 .\gradlew.bat exportUMAPIFabric12111
+.\gradlew.bat exportUMAPIFabric2612
+.\gradlew.bat exportUMAPIFabric262
 .\gradlew.bat exportUMAPINeoForge1201
 .\gradlew.bat exportUMAPINeoForge1204
 .\gradlew.bat exportUMAPINeoForge1206
@@ -425,6 +494,11 @@ Use a target-specific export task when only one jar is needed:
 .\gradlew.bat exportUMAPINeoForge1218
 .\gradlew.bat exportUMAPINeoForge12110
 .\gradlew.bat exportUMAPINeoForge12111
+.\gradlew.bat exportUMAPINeoForge2612
+.\gradlew.bat exportUMAPINeoForge262
+.\gradlew.bat exportUMAPIForge1165
+.\gradlew.bat exportUMAPIForge1182
+.\gradlew.bat exportUMAPIForge1192
 .\gradlew.bat exportUMAPIForge1201
 .\gradlew.bat exportUMAPIForge1204
 .\gradlew.bat exportUMAPIForge1206
@@ -437,6 +511,10 @@ Exported jars are copied to `build/umapi/exports` with readable names containing
 Consuming mods also receive UMAPI runtime tasks:
 
 ```powershell
+.\gradlew.bat runUMAPIFabric1182Client
+.\gradlew.bat runUMAPIFabric1182Server
+.\gradlew.bat runUMAPIFabric1192Client
+.\gradlew.bat runUMAPIFabric1192Server
 .\gradlew.bat runUMAPIFabric1201Client
 .\gradlew.bat runUMAPIFabric1201Server
 .\gradlew.bat runUMAPIFabric1204Client
@@ -455,6 +533,10 @@ Consuming mods also receive UMAPI runtime tasks:
 .\gradlew.bat runUMAPIFabric12110Server
 .\gradlew.bat runUMAPIFabric12111Client
 .\gradlew.bat runUMAPIFabric12111Server
+.\gradlew.bat runUMAPIFabric2612Client
+.\gradlew.bat runUMAPIFabric2612Server
+.\gradlew.bat runUMAPIFabric262Client
+.\gradlew.bat runUMAPIFabric262Server
 .\gradlew.bat runUMAPINeoForge1201Client
 .\gradlew.bat runUMAPINeoForge1201Server
 .\gradlew.bat runUMAPINeoForge1204Client
@@ -473,6 +555,16 @@ Consuming mods also receive UMAPI runtime tasks:
 .\gradlew.bat runUMAPINeoForge12110Server
 .\gradlew.bat runUMAPINeoForge12111Client
 .\gradlew.bat runUMAPINeoForge12111Server
+.\gradlew.bat runUMAPINeoForge2612Client
+.\gradlew.bat runUMAPINeoForge2612Server
+.\gradlew.bat runUMAPINeoForge262Client
+.\gradlew.bat runUMAPINeoForge262Server
+.\gradlew.bat runUMAPIForge1165Client
+.\gradlew.bat runUMAPIForge1165Server
+.\gradlew.bat runUMAPIForge1182Client
+.\gradlew.bat runUMAPIForge1182Server
+.\gradlew.bat runUMAPIForge1192Client
+.\gradlew.bat runUMAPIForge1192Server
 .\gradlew.bat runUMAPIForge1201Client
 .\gradlew.bat runUMAPIForge1201Server
 .\gradlew.bat runUMAPIForge1204Client
@@ -489,4 +581,4 @@ Consuming mods also receive UMAPI runtime tasks:
 
 The loader-specific tasks delegate to the selected loader tooling's native run tasks. The neutral `runUMAPIClient` and `runUMAPIServer` tasks use the configured or automatically selected default runtime.
 
-UMAPI keeps loader runtime data in target-specific directories under `runs/`, such as `runs/fabric1201Client`, `runs/fabric1204Client`, `runs/fabric1206Client`, `runs/fabric1211Client`, `runs/fabric1213Client`, `runs/fabric1215Client`, `runs/fabric1218Client`, `runs/fabric12110Client`, `runs/fabric12111Client`, `runs/neoForge1201Client`, `runs/neoForge1204Client`, `runs/neoForge1206Client`, `runs/neoForge1211Client`, `runs/neoForge1213Client`, `runs/neoForge1215Client`, `runs/neoForge1218Client`, `runs/neoForge12110Client`, `runs/neoForge12111Client`, `runs/forge1201Client`, `runs/forge1204Client`, `runs/forge1206Client`, `runs/quilt1201Client`, and `runs/quilt1204Client`.
+UMAPI keeps loader runtime data in target-specific directories under `runs/`, such as `runs/fabric1182Client`, `runs/fabric1192Client`, `runs/fabric1201Client`, `runs/fabric1204Client`, `runs/fabric1206Client`, `runs/fabric1211Client`, `runs/fabric1213Client`, `runs/fabric1215Client`, `runs/fabric1218Client`, `runs/fabric12110Client`, `runs/fabric12111Client`, `runs/fabric2612Client`, `runs/fabric262Client`, `runs/neoForge1201Client`, `runs/neoForge1204Client`, `runs/neoForge1206Client`, `runs/neoForge1211Client`, `runs/neoForge1213Client`, `runs/neoForge1215Client`, `runs/neoForge1218Client`, `runs/neoForge12110Client`, `runs/neoForge12111Client`, `runs/neoForge2612Client`, `runs/neoForge262Client`, `runs/forge1165Client`, `runs/forge1182Client`, `runs/forge1192Client`, `runs/forge1201Client`, `runs/forge1204Client`, `runs/forge1206Client`, `runs/quilt1201Client`, and `runs/quilt1204Client`.

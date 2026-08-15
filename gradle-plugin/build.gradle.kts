@@ -39,6 +39,7 @@ repositories {
 }
 
 dependencies {
+    implementation(project(":api"))
     implementation("net.neoforged.gradle.userdev:net.neoforged.gradle.userdev.gradle.plugin:7.1.38")
     implementation("net.neoforged.moddev:net.neoforged.moddev.gradle.plugin:2.0.143")
     implementation("net.minecraftforge.gradle:net.minecraftforge.gradle.gradle.plugin:7.0.31")

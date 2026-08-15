@@ -13,10 +13,10 @@ public final class Fabric1204Entrypoint implements ModInitializer {
         UMAPI.logger().info("UMAPI initialised for Fabric 1.20.4.");
 
         FabricLoader.getInstance()
-                .invokeEntrypoints(
-                        "umapi",
-                        UMAPIMod.class,
-                        UMAPIMod::initialise
-                );
+                .getEntrypointContainers("umapi", UMAPIMod.class)
+                .forEach(container -> UMAPI.loadMod(
+                        container.getProvider().getMetadata().getId(),
+                        container.getEntrypoint()
+                ));
     }
 }

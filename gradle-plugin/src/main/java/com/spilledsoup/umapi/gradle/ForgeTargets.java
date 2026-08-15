@@ -27,7 +27,7 @@ final class ForgeTargets {
     private static final String GENERATE_RESOURCES_TASK = "generateUMAPIForgeResources";
     private static final String CLEAN_STALE_MAIN_RESOURCES_TASK = "cleanUMAPIForgeStaleMainResources";
     private static final String CLEAN_STALE_CLASS_RESOURCES_TASK = "cleanUMAPIForgeStaleClassResources";
-    private static final String COPY_RESOURCES_TO_CLASSES_TASK = "copyUMAPIForgeResourcesToClasses";
+    private static final String COPY_RESOURCES_TO_MAIN_RESOURCES_TASK = "copyUMAPIForgeResourcesToMainResources";
     private static final String GENERATE_ENTRYPOINT_TASK = "generateUMAPIForgeEntrypoint";
     private static final String GENERATED_ENTRYPOINT_CLASS = "UMAPIForgeEntrypoint";
     private static final String FORGE_CLIENT_RUN = "client";
@@ -35,6 +35,7 @@ final class ForgeTargets {
     private static final String NATIVE_FORGE_CLIENT_TASK = "runClient";
     private static final String NATIVE_FORGE_SERVER_TASK = "runServer";
     private static final String REOBF_JAR_TASK = "reobfJar";
+    private static final String BOOTSTRAP_LAUNCHER_MAIN_OPEN = "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED";
 
     private ForgeTargets() {
     }
@@ -143,19 +144,27 @@ final class ForgeTargets {
                 GENERATE_RESOURCES_TASK
         );
 
-        wireGeneratedResourcesToClasses(
+        var generateContentResources = UMAPIContentResources.register(
+                project,
+                mod,
+                target.minecraftVersion(),
+                generatedResourcesDirectory
+        );
+
+        wireGeneratedResourcesToOutputs(
                 project,
                 generatedResourcesDirectory,
-                generateResources
+                java.util.List.of(generateResources, generateContentResources)
         );
     }
 
-    private static void wireGeneratedResourcesToClasses(
+    private static void wireGeneratedResourcesToOutputs(
             Project project,
             org.gradle.api.provider.Provider<org.gradle.api.file.Directory> generatedResourcesDirectory,
-            org.gradle.api.tasks.TaskProvider<?> generateResources
+            java.util.List<org.gradle.api.tasks.TaskProvider<?>> generateResources
     ) {
         var compileJava = project.getTasks().named("compileJava", JavaCompile.class);
+        var processResources = project.getTasks().named("processResources");
         var mainResourcesDirectory = project.getLayout()
                 .getBuildDirectory()
                 .dir("resources/main");
@@ -166,9 +175,18 @@ final class ForgeTargets {
                 mainResourcesDirectory
         );
 
-        project.getTasks()
-                .named("processResources")
-                .configure(task -> task.dependsOn(cleanStaleMainResources));
+        processResources.configure(task -> task.dependsOn(cleanStaleMainResources));
+
+        var copyResourcesToMainResources = project.getTasks().register(
+                COPY_RESOURCES_TO_MAIN_RESOURCES_TASK,
+                Copy.class,
+                task -> {
+                    generateResources.forEach(task::dependsOn);
+                    task.dependsOn(processResources);
+                    task.from(generatedResourcesDirectory);
+                    task.into(mainResourcesDirectory);
+                }
+        );
 
         var cleanStaleClassResources = UMAPIGeneratedResources.registerLoaderMetadataCleanup(
                 project,
@@ -177,20 +195,12 @@ final class ForgeTargets {
         );
         cleanStaleClassResources.configure(task -> task.dependsOn(compileJava));
 
-        var copyResourcesToClasses = project.getTasks().register(
-                COPY_RESOURCES_TO_CLASSES_TASK,
-                Copy.class,
-                task -> {
-                    task.dependsOn(generateResources);
-                    task.dependsOn(cleanStaleClassResources);
-                    task.from(generatedResourcesDirectory);
-                    task.into(compileJava.flatMap(JavaCompile::getDestinationDirectory));
-                }
-        );
-
         project.getTasks()
                 .named("classes")
-                .configure(task -> task.dependsOn(copyResourcesToClasses));
+                .configure(task -> {
+                    task.dependsOn(copyResourcesToMainResources);
+                    task.dependsOn(cleanStaleClassResources);
+                });
     }
 
     private static void configureGeneratedEntrypoint(
@@ -273,6 +283,7 @@ final class ForgeTargets {
                         .getProjectDirectory()
                         .dir("runs/" + runName)
         );
+        run.jvmArgs(BOOTSTRAP_LAUNCHER_MAIN_OPEN);
         run.getMods().maybeCreate(modId).source(main);
     }
 

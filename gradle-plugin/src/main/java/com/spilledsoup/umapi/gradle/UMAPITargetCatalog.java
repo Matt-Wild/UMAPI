@@ -4,16 +4,35 @@ import java.util.List;
 import java.util.stream.Stream;
 
 final class UMAPITargetCatalog {
-    static final String FABRIC_LOOM_PLUGIN = "net.fabricmc.fabric-loom-remap";
+    static final String FABRIC_LOOM_PLUGIN = "net.fabricmc.fabric-loom";
+    static final String FABRIC_LOOM_REMAP_PLUGIN = "net.fabricmc.fabric-loom-remap";
     static final String QUILT_LOOM_PLUGIN = "org.quiltmc.loom";
     static final int JAVA_17_LANGUAGE_VERSION = 17;
     static final int JAVA_21_LANGUAGE_VERSION = 21;
+    static final int JAVA_25_LANGUAGE_VERSION = 25;
     static final String JAVA_17_DEPENDENCY = ">=17";
     static final String JAVA_21_DEPENDENCY = ">=21";
+    static final String JAVA_25_DEPENDENCY = ">=25";
     static final String UMAPI_ANY_DEPENDENCY = "*";
     static final String UMAPI_FORGE_FAMILY_VERSION_RANGE = "[0,)";
 
     private static final List<FabricTarget> FABRIC_TARGETS = List.of(
+            new FabricTarget(
+                    target(UMAPILoader.FABRIC, "1.18.2"),
+                    "0.19.3",
+                    ">=0.14.6",
+                    "0.77.0+1.18.2",
+                    JAVA_17_LANGUAGE_VERSION,
+                    JAVA_17_DEPENDENCY
+            ),
+            new FabricTarget(
+                    target(UMAPILoader.FABRIC, "1.19.2"),
+                    "0.19.3",
+                    ">=0.14.6",
+                    "0.77.0+1.19.2",
+                    JAVA_17_LANGUAGE_VERSION,
+                    JAVA_17_DEPENDENCY
+            ),
             new FabricTarget(
                     target(UMAPILoader.FABRIC, "1.20.1"),
                     "0.19.3",
@@ -85,6 +104,30 @@ final class UMAPITargetCatalog {
                     "0.141.6+1.21.11",
                     JAVA_21_LANGUAGE_VERSION,
                     JAVA_21_DEPENDENCY
+            ),
+            new FabricTarget(
+                    target(UMAPILoader.FABRIC, "26.1.2"),
+                    "0.19.3",
+                    ">=0.19.3",
+                    "0.155.2+26.1.2",
+                    JAVA_25_LANGUAGE_VERSION,
+                    JAVA_25_DEPENDENCY,
+                    FABRIC_LOOM_PLUGIN,
+                    "implementation",
+                    "jar",
+                    false
+            ),
+            new FabricTarget(
+                    target(UMAPILoader.FABRIC, "26.2"),
+                    "0.19.3",
+                    ">=0.19.3",
+                    "0.156.0+26.2",
+                    JAVA_25_LANGUAGE_VERSION,
+                    JAVA_25_DEPENDENCY,
+                    FABRIC_LOOM_PLUGIN,
+                    "implementation",
+                    "jar",
+                    false
             )
     );
     private static final List<NeoForgeTarget> NEOFORGE_TARGETS = List.of(
@@ -231,9 +274,71 @@ final class UMAPITargetCatalog {
                     "net.neoforged.bus.api.IEventBus",
                     JAVA_21_LANGUAGE_VERSION,
                     NeoForgeBuildPlugin.MODDEV_GRADLE
+            ),
+            new NeoForgeTarget(
+                    target(UMAPILoader.NEOFORGE, "26.1.2"),
+                    "net.neoforged:neoforge:26.1.2.95",
+                    "[26.1.2]",
+                    "neoforge",
+                    "[26.1.2.95,26.1.3)",
+                    "[1,)",
+                    true,
+                    84,
+                    "neoforge.mods.toml",
+                    "com.spilledsoup.umapi.generated.neoforge2612",
+                    "net.neoforged",
+                    "net.neoforged.bus.api.IEventBus",
+                    JAVA_25_LANGUAGE_VERSION,
+                    NeoForgeBuildPlugin.MODDEV_GRADLE
+            ),
+            new NeoForgeTarget(
+                    target(UMAPILoader.NEOFORGE, "26.2"),
+                    "net.neoforged:neoforge:26.2.0.59",
+                    "[26.2]",
+                    "neoforge",
+                    "[26.2.0.59,26.3)",
+                    "[1,)",
+                    true,
+                    88,
+                    "neoforge.mods.toml",
+                    "com.spilledsoup.umapi.generated.neoforge262",
+                    "net.neoforged",
+                    "net.neoforged.bus.api.IEventBus",
+                    JAVA_25_LANGUAGE_VERSION,
+                    NeoForgeBuildPlugin.MODDEV_GRADLE
             )
     );
     private static final List<ForgeTarget> FORGE_TARGETS = List.of(
+            new ForgeTarget(
+                    target(UMAPILoader.FORGE, "1.16.5"),
+                    "1.16.5-36.2.42",
+                    "[1.16.5,1.17)",
+                    "[36.2.42,)",
+                    "[36,)",
+                    6,
+                    "com.spilledsoup.umapi.generated.forge1165",
+                    JAVA_17_LANGUAGE_VERSION
+            ),
+            new ForgeTarget(
+                    target(UMAPILoader.FORGE, "1.18.2"),
+                    "1.18.2-40.3.12",
+                    "[1.18.2,1.19)",
+                    "[40.3.12,)",
+                    "[40,)",
+                    8,
+                    "com.spilledsoup.umapi.generated.forge1182",
+                    JAVA_17_LANGUAGE_VERSION
+            ),
+            new ForgeTarget(
+                    target(UMAPILoader.FORGE, "1.19.2"),
+                    "1.19.2-43.5.2",
+                    "[1.19.2,1.20)",
+                    "[43.5.2,)",
+                    "[43,)",
+                    9,
+                    "com.spilledsoup.umapi.generated.forge1192",
+                    JAVA_17_LANGUAGE_VERSION
+            ),
             new ForgeTarget(
                     target(UMAPILoader.FORGE, "1.20.1"),
                     "1.20.1-47.4.10",
@@ -351,8 +456,34 @@ final class UMAPITargetCatalog {
             String fabricLoaderDependency,
             String fabricApiVersion,
             int javaLanguageVersion,
-            String javaDependency
+            String javaDependency,
+            String loomPluginId,
+            String dependencyConfiguration,
+            String exportJarTaskName,
+            boolean useExplicitOfficialMojangMappings
     ) implements CatalogTarget {
+        FabricTarget(
+                UMAPITargetDefinition target,
+                String fabricLoaderVersion,
+                String fabricLoaderDependency,
+                String fabricApiVersion,
+                int javaLanguageVersion,
+                String javaDependency
+        ) {
+            this(
+                    target,
+                    fabricLoaderVersion,
+                    fabricLoaderDependency,
+                    fabricApiVersion,
+                    javaLanguageVersion,
+                    javaDependency,
+                    FABRIC_LOOM_REMAP_PLUGIN,
+                    "modImplementation",
+                    "remapJar",
+                    true
+            );
+        }
+
         String fabricLoaderDependencyNotation() {
             return "net.fabricmc:fabric-loader:" + fabricLoaderVersion;
         }

@@ -87,10 +87,17 @@ final class QuiltTargets {
                 }
         );
 
+        var generateContentResources = UMAPIContentResources.register(
+                project,
+                mod,
+                target.minecraftVersion(),
+                generatedResourcesDirectory
+        );
+
         UMAPIGeneratedResources.wireMainResources(
                 project,
                 generatedResourcesDirectory,
-                generateResources
+                List.of(generateResources, generateContentResources)
         );
 
         UMAPIGeneratedResources.cleanStaleCompiledLoaderMetadataBeforeJar(project);
